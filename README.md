@@ -47,7 +47,12 @@ curl -sSL https://raw.githubusercontent.com/teerakanotklan/squid-dashy/main/inst
 > cd ~/squid-dashy
 > sudo bash install.sh
 > ```
-*สคริปต์จะติดตั้ง System Dependencies, สร้าง Python `venv`, ติดตั้งแพ็กเกจ (รวม WebSocket), สร้างและเปิดใช้งาน Systemd Service ให้อัตโนมัติทันที*
+
+สคริปต์จะมีเมนูให้เลือก 2 รูปแบบ:
+- **`[1] ทดสอบ (Test)`**: สร้าง `venv`, ติดตั้ง dependencies และรันเซิร์ฟเวอร์บน Terminal ทันที เหมาะสำหรับทดสอบดูหน้าเว็บก่อน
+- **`[2] โปรดักชัน (Production)`**: ติดตั้งและสร้าง Linux **Systemd Service** ให้อัตโนมัติ รันเบื้องหลังและเปิดใช้งานตอนบูตระบบ
+
+*(สามารถระบุล่วงหน้าได้ด้วย `sudo bash install.sh --test` หรือ `sudo bash install.sh --prod`)*
 
 ---
 
