@@ -24,7 +24,7 @@ echo -e "${NC}"
 
 # 1. Check Root Privileges
 if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}[ERROR] กรุณารันสคริปต์นี้ด้วยสิทธิ์ root หรือใช้ sudo:${NC}"
+    echo -e "${RED}[ERROR] Please run this script with root privileges or use sudo:${NC}"
     echo "  sudo bash install.sh"
     exit 1
 fi
@@ -38,16 +38,16 @@ elif [ "$1" == "--prod" ] || [ "$1" == "2" ]; then
 fi
 
 if [ -z "$MODE" ]; then
-    echo -e "${BOLD}กรุณาเลือกรูปแบบการทำงาน:${NC}"
-    echo -e "  ${CYAN}[1]${NC} ${BOLD}ทดสอบ (Test)${NC}      - รันแบบ Virtual Env (venv) บน Terminal ทันที"
-    echo -e "  ${GREEN}[2]${NC} ${BOLD}โปรดักชัน (Production)${NC} - ติดตั้งเป็น Systemd Service รันเบื้องหลังอัตโนมัติ"
+    echo -e "${BOLD}Please select the installation mode:${NC}"
+    echo -e "  ${CYAN}[1]${NC} ${BOLD}Test${NC}       - Run inside Virtual Environment (venv) in foreground"
+    echo -e "  ${GREEN}[2]${NC} ${BOLD}Production${NC} - Install and enable background Systemd Service"
     echo ""
     
     # Check if input is from terminal or pipe
     if [ -t 0 ]; then
-        read -rp "เลือกหมายเลข [1 หรือ 2] (ค่าเริ่มต้น 2): " USER_INPUT
+        read -rp "Enter choice [1 or 2] (default 2): " USER_INPUT
     elif [ -e /dev/tty ]; then
-        read -rp "เลือกหมายเลข [1 หรือ 2] (ค่าเริ่มต้น 2): " USER_INPUT < /dev/tty
+        read -rp "Enter choice [1 or 2] (default 2): " USER_INPUT < /dev/tty
     else
         USER_INPUT="2"
     fi
@@ -63,25 +63,25 @@ if [ -z "$MODE" ]; then
 fi
 
 if [ "$MODE" == "1" ]; then
-    echo -e "${MAGENTA}${BOLD}>> เลือกโหมด: [1] ทดสอบ (Test - Virtual Env)${NC}\n"
+    echo -e "${MAGENTA}${BOLD}>> Selected mode: [1] Test (Virtual Env)${NC}\n"
 else
-    echo -e "${GREEN}${BOLD}>> เลือกโหมด: [2] โปรดักชัน (Production - Systemd Service)${NC}\n"
+    echo -e "${GREEN}${BOLD}>> Selected mode: [2] Production (Systemd Service)${NC}\n"
 fi
 
 # 3. Determine Installation Directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "$SCRIPT_DIR/app.py" ] && [ -f "$SCRIPT_DIR/requirements.txt" ]; then
     INSTALL_DIR="$SCRIPT_DIR"
-    echo -e "${GREEN}[INFO] ตรวจพบไฟล์โปรเจกต์ในไดเรกทอรีปัจจุบัน: ${BOLD}$INSTALL_DIR${NC}"
+    echo -e "${GREEN}[INFO] Project files detected in current directory: ${BOLD}$INSTALL_DIR${NC}"
 else
     INSTALL_DIR="/opt/squid-dashy"
-    echo -e "${YELLOW}[INFO] ไม่พบไฟล์โปรเจกต์ในไดเรกทอรีปัจจุบัน จะทำการติดตั้งที่: ${BOLD}$INSTALL_DIR${NC}"
+    echo -e "${YELLOW}[INFO] Installing project to: ${BOLD}$INSTALL_DIR${NC}"
     if [ -d "$INSTALL_DIR" ]; then
-        echo -e "${YELLOW}[INFO] โฟลเดอร์ $INSTALL_DIR มีอยู่แล้ว กำลังอัปเดตโค้ด...${NC}"
+        echo -e "${YELLOW}[INFO] Directory $INSTALL_DIR already exists. Pulling latest updates...${NC}"
         cd "$INSTALL_DIR"
         git pull || true
     else
-        echo -e "${GREEN}[INFO] กำลัง Clone โค้ดจาก GitHub...${NC}"
+        echo -e "${GREEN}[INFO] Cloning repository from GitHub...${NC}"
         git clone https://github.com/teerakanotklan/squid-dashy.git "$INSTALL_DIR"
         cd "$INSTALL_DIR"
     fi
@@ -90,7 +90,7 @@ fi
 cd "$INSTALL_DIR"
 
 # 4. Detect OS & Package Manager
-echo -e "\n${BLUE}[1/4] กำลังตรวจสอบและติดตั้ง System Dependencies...${NC}"
+echo -e "\n${BLUE}[1/4] Checking and installing system dependencies...${NC}"
 if command -v apt-get &> /dev/null; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -y
@@ -100,29 +100,29 @@ elif command -v dnf &> /dev/null; then
 elif command -v yum &> /dev/null; then
     yum install -y python3 python3-pip git curl
 else
-    echo -e "${RED}[ERROR] ไม่พบ package manager ที่รองรับ (apt, dnf, yum)${NC}"
+    echo -e "${RED}[ERROR] Unsupported package manager (apt, dnf, yum not found)${NC}"
     exit 1
 fi
 
 # 5. Setup Python Virtual Environment (venv)
-echo -e "\n${BLUE}[2/4] กำลังสร้างและกำหนดค่า Python Virtual Environment (venv)...${NC}"
+echo -e "\n${BLUE}[2/4] Setting up Python Virtual Environment (venv)...${NC}"
 if [ ! -d "$INSTALL_DIR/venv" ]; then
     python3 -m venv "$INSTALL_DIR/venv"
-    echo -e "${GREEN}[OK] สร้าง venv สำเร็จที่ $INSTALL_DIR/venv${NC}"
+    echo -e "${GREEN}[OK] Created virtual environment at $INSTALL_DIR/venv${NC}"
 else
-    echo -e "${YELLOW}[INFO] ตรวจพบ venv อยู่แล้ว ข้ามการสร้างใหม่${NC}"
+    echo -e "${YELLOW}[INFO] Virtual environment already exists. Skipping creation.${NC}"
 fi
 
 # 6. Install Dependencies inside venv
-echo -e "\n${BLUE}[3/4] กำลังติดตั้ง Python Dependencies (FastAPI, Uvicorn, WebSockets)...${NC}"
+echo -e "\n${BLUE}[3/4] Installing Python dependencies (FastAPI, Uvicorn, WebSockets)...${NC}"
 "$INSTALL_DIR/venv/bin/python" -m pip install --upgrade pip --quiet
 "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt" --quiet
 
 # Verify websockets & uvicorn
 if "$INSTALL_DIR/venv/bin/python" -c "import fastapi, uvicorn, websockets" &> /dev/null; then
-    echo -e "${GREEN}[OK] ติดตั้ง Python dependencies ครบถ้วน (รวม WebSocket support)${NC}"
+    echo -e "${GREEN}[OK] Python dependencies verified (including WebSocket support)${NC}"
 else
-    echo -e "${RED}[ERROR] ตรวจพบปัญหาในการติดตั้ง dependencies กรุณาตรวจสอบ logs ด้านบน${NC}"
+    echo -e "${RED}[ERROR] Failed to verify Python dependencies. Please inspect logs above.${NC}"
     exit 1
 fi
 
@@ -134,16 +134,16 @@ fi
 
 # 7. Execute according to chosen mode
 if [ "$MODE" == "1" ]; then
-    echo -e "\n${BLUE}[4/4] เตรียมเปิดใช้งานเซิร์ฟเวอร์ในโหมดทดสอบ...${NC}"
+    echo -e "\n${BLUE}[4/4] Starting server in Test Mode...${NC}"
     echo -e "\n${GREEN}${BOLD}"
     echo "  ================================================================"
-    echo "    🚀 พร้อมเริ่มการทดสอบ (Test Mode)                             "
+    echo "    🚀 Test Mode Ready!                                           "
     echo "  ================================================================"
     echo -e "${NC}"
-    echo -e "  🌐 เปิดใช้งานหน้าแดชบอร์ดได้ที่:"
-    echo -e "     ${BOLD}${CYAN}http://$SERVER_IP:8080${NC} หรือ ${BOLD}${CYAN}http://localhost:8080${NC}"
+    echo -e "  🌐 Access the web dashboard at:"
+    echo -e "     ${BOLD}${CYAN}http://$SERVER_IP:8080${NC} or ${BOLD}${CYAN}http://localhost:8080${NC}"
     echo ""
-    echo -e "  ⚠️  ${YELLOW}กด Ctrl + C เพื่อหยุดการทำงานเมื่อทดสอบเสร็จสิ้น${NC}"
+    echo -e "  ⚠️  ${YELLOW}Press Ctrl + C to stop the test server when finished.${NC}"
     echo "  ================================================================"
     echo ""
 
@@ -152,7 +152,7 @@ if [ "$MODE" == "1" ]; then
 
 else
     # Production: Setup Systemd Service
-    echo -e "\n${BLUE}[4/4] กำลังสร้างและตั้งค่า Systemd Service (squid-dashy.service)...${NC}"
+    echo -e "\n${BLUE}[4/4] Configuring and starting Systemd Service (squid-dashy.service)...${NC}"
     SERVICE_FILE="/etc/systemd/system/squid-dashy.service"
 
     cat <<EOF > "$SERVICE_FILE"
@@ -186,25 +186,25 @@ EOF
 
     echo -e "\n${GREEN}${BOLD}"
     echo "  ================================================================"
-    echo "    🎉 ติดตั้ง Service โปรดักชัน (Production Mode) สำเร็จ!       "
+    echo "    🎉 Production Service Installation Completed!                "
     echo "  ================================================================"
     echo -e "${NC}"
     if systemctl is-active --quiet squid-dashy.service; then
-        echo -e "  สถานะ Service: ${GREEN}${BOLD}● Active (Running)${NC}"
+        echo -e "  Service Status: ${GREEN}${BOLD}● Active (Running)${NC}"
     else
-        echo -e "  สถานะ Service: ${YELLOW}กำลังเริ่มต้น หรือกรุณาตรวจสอบด้วย journalctl -u squid-dashy${NC}"
+        echo -e "  Service Status: ${YELLOW}Starting... Check status using: journalctl -u squid-dashy -f${NC}"
     fi
     echo ""
-    echo -e "  🌐 เปิดใช้งานหน้าแดชบอร์ดได้ที่:"
-    echo -e "     ${BOLD}${CYAN}http://$SERVER_IP:8080${NC} หรือ ${BOLD}${CYAN}http://localhost:8080${NC}"
+    echo -e "  🌐 Access the web dashboard at:"
+    echo -e "     ${BOLD}${CYAN}http://$SERVER_IP:8080${NC} or ${BOLD}${CYAN}http://localhost:8080${NC}"
     echo ""
-    echo -e "  📌 คำสั่งที่มีประโยชน์ในการจัดการ Service:"
-    echo -e "     - ดูสถานะ:      ${YELLOW}systemctl status squid-dashy${NC}"
-    echo -e "     - ดูบันทึกการรัน: ${YELLOW}journalctl -u squid-dashy -f${NC}"
-    echo -e "     - รีสตาร์ท:     ${YELLOW}systemctl restart squid-dashy${NC}"
-    echo -e "     - หยุดการทำงาน:  ${YELLOW}systemctl stop squid-dashy${NC}"
+    echo -e "  📌 Useful Service Management Commands:"
+    echo -e "     - Check status:  ${YELLOW}systemctl status squid-dashy${NC}"
+    echo -e "     - View logs:     ${YELLOW}journalctl -u squid-dashy -f${NC}"
+    echo -e "     - Restart:       ${YELLOW}systemctl restart squid-dashy${NC}"
+    echo -e "     - Stop service:  ${YELLOW}systemctl stop squid-dashy${NC}"
     echo ""
-    echo -e "  📁 ตำแหน่งโปรเจกต์: ${BOLD}$INSTALL_DIR${NC}"
+    echo -e "  📁 Project Directory: ${BOLD}$INSTALL_DIR${NC}"
     echo "  ================================================================"
     echo ""
 fi

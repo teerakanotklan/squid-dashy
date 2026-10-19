@@ -6,10 +6,10 @@ Wants=squid.service
 [Service]
 Type=simple
 User=root
-# กำหนดโฟลเดอร์ของโปรเจกต์ (ปรับตามตำแหน่งจริง เช่น /root/squid-dashy หรือ /opt/squid-dashy)
+# Set project directory path (e.g., /root/squid-dashy or /opt/squid-dashy)
 WorkingDirectory=/root/squid-dashy
 
-# เรียกใช้ Python ภายใน Virtual Environment (venv) เพื่อแก้ปัญหา PEP 668
+# Execute Python from Virtual Environment (venv)
 ExecStart=/root/squid-dashy/venv/bin/python app.py
 
 Restart=always

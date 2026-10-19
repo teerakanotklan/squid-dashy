@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="th" class="dark">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Squid Proxy Dashboard | แดชบอร์ดตรวจสอบสถานะ Squid</title>
+    <title>Squid Proxy Dashboard | Real-Time Monitoring</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -31,9 +31,9 @@
     <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
         body {
-            font-family: 'Plus Jakarta Sans', 'Sarabun', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
         .font-mono {
             font-family: 'JetBrains Mono', monospace;
@@ -89,7 +89,6 @@
 
             <!-- Header Controls -->
             <div class="flex items-center space-x-3">
-
                 <!-- WebSocket Connection Indicator -->
                 <div class="hidden sm:flex items-center space-x-1.5 text-xs text-slate-400 bg-slate-800/60 px-2.5 py-1.5 rounded-lg border border-slate-800">
                     <span id="wsIndicator" class="w-2 h-2 rounded-full bg-emerald-400"></span>
@@ -121,7 +120,7 @@
                 </div>
                 <div class="flex items-baseline space-x-2">
                     <span class="text-3xl font-bold text-white tracking-tight" id="reqHitRatio">0.0%</span>
-                    <span class="text-xs text-slate-400">จากคำขอทั้งหมด</span>
+                    <span class="text-xs text-slate-400">of total requests</span>
                 </div>
                 <div class="mt-3 w-full bg-slate-700/60 h-2 rounded-full overflow-hidden">
                     <div id="reqHitBar" class="bg-gradient-to-r from-teal-500 to-emerald-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
@@ -143,7 +142,7 @@
                 </div>
                 <div class="flex items-baseline space-x-2">
                     <span class="text-3xl font-bold text-white tracking-tight" id="byteHitRatio">0.0%</span>
-                    <span class="text-xs text-emerald-400 font-medium" id="savedBytes">0 MB ประหยัดได้</span>
+                    <span class="text-xs text-emerald-400 font-medium" id="savedBytes">0 MB saved</span>
                 </div>
                 <div class="mt-3 w-full bg-slate-700/60 h-2 rounded-full overflow-hidden">
                     <div id="byteHitBar" class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
@@ -158,7 +157,7 @@
             <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur shadow-sm relative overflow-hidden group hover:border-cyan-500/50 transition">
                 <div class="absolute -right-3 -top-3 w-20 h-20 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition"></div>
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Throughput / อัตราคำขอ</span>
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Throughput & Requests</span>
                     <div class="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
                         <i data-lucide="activity" class="w-4 h-4"></i>
                     </div>
@@ -172,7 +171,7 @@
                     <span class="font-mono font-semibold text-cyan-300" id="bandwidthSec">0 KB/s</span>
                 </div>
                 <div class="mt-1 flex items-center justify-between text-xs text-slate-400">
-                    <span>คำขอทั้งหมด:</span>
+                    <span>Total Requests:</span>
                     <span class="font-semibold text-slate-200" id="kpiTotalRequests">0</span>
                 </div>
             </div>
@@ -181,7 +180,7 @@
             <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur shadow-sm relative overflow-hidden group hover:border-indigo-500/50 transition">
                 <div class="absolute -right-3 -top-3 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition"></div>
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">ทรัพยากร / สตอเรจแคช</span>
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Resources & Storage</span>
                     <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
                         <i data-lucide="hard-drive" class="w-4 h-4"></i>
                     </div>
@@ -193,7 +192,7 @@
                             <span class="font-mono text-slate-300" id="diskCacheText">0 / 10 GB</span>
                         </div>
                         <div class="w-full bg-slate-700/60 h-1.5 rounded-full overflow-hidden">
-                            <div id="diskCacheBar" class="bg-indigo-400 h-1.5 rounded-full" style="width: 20%"></div>
+                            <div id="diskCacheBar" class="bg-indigo-400 h-1.5 rounded-full" style="width: 0%"></div>
                         </div>
                     </div>
                     <div>
@@ -202,7 +201,7 @@
                             <span class="font-mono text-slate-300" id="ramCacheText">0 / 512 MB</span>
                         </div>
                         <div class="w-full bg-slate-700/60 h-1.5 rounded-full overflow-hidden">
-                            <div id="ramCacheBar" class="bg-purple-400 h-1.5 rounded-full" style="width: 30%"></div>
+                            <div id="ramCacheBar" class="bg-purple-400 h-1.5 rounded-full" style="width: 0%"></div>
                         </div>
                     </div>
                     <div class="flex justify-between text-slate-400 pt-1 border-t border-slate-700/40">
@@ -221,9 +220,9 @@
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center space-x-2">
                         <i data-lucide="trending-up" class="w-5 h-5 text-teal-400"></i>
-                        <h2 class="font-semibold text-slate-200 text-sm">ปริมาณคำขอและทราฟฟิกตามเวลาจริง (Real-time Throughput)</h2>
+                        <h2 class="font-semibold text-slate-200 text-sm">Real-time Throughput & Traffic Timeline</h2>
                     </div>
-                    <span class="text-xs text-slate-400 font-mono">อัปเดตทุก 2 วินาที</span>
+                    <span class="text-xs text-slate-400 font-mono">Updated every 2s</span>
                 </div>
                 <div class="h-64">
                     <canvas id="trafficChart"></canvas>
@@ -235,7 +234,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center space-x-2">
                         <i data-lucide="pie-chart" class="w-5 h-5 text-emerald-400"></i>
-                        <h2 class="font-semibold text-slate-200 text-sm">สัดส่วนผลลัพธ์แคช (Hit / Miss / Denied)</h2>
+                        <h2 class="font-semibold text-slate-200 text-sm">Cache Result Ratio (Hit / Miss / Denied)</h2>
                     </div>
                 </div>
                 <div class="flex-1 flex items-center justify-center h-48">
@@ -283,7 +282,7 @@
 
                 <!-- Status Counters Quick Chips -->
                 <div id="statusBadgesContainer" class="hidden sm:flex items-center space-x-2 py-2">
-                    <!-- populated dynamically -->
+                    <!-- Populated dynamically -->
                 </div>
             </div>
 
@@ -295,11 +294,11 @@
                         <!-- Search input -->
                         <div class="relative w-full sm:w-64">
                             <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
-                            <input type="text" id="logSearchInput" oninput="applyLogFilters()" placeholder="ค้นหา IP, โดเมน, URL..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500">
+                            <input type="text" id="logSearchInput" oninput="applyLogFilters()" placeholder="Search IP, Domain, URL..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500">
                         </div>
                         <!-- Filter Type -->
                         <div class="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-700 text-xs">
-                            <button onclick="setLogTypeFilter('ALL')" id="filterBtn-ALL" class="px-2.5 py-1 rounded-md bg-teal-600 text-white font-medium">ทั้งหมด</button>
+                            <button onclick="setLogTypeFilter('ALL')" id="filterBtn-ALL" class="px-2.5 py-1 rounded-md bg-teal-600 text-white font-medium">All</button>
                             <button onclick="setLogTypeFilter('HIT')" id="filterBtn-HIT" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Hits Only</button>
                             <button onclick="setLogTypeFilter('MISS')" id="filterBtn-MISS" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Miss Only</button>
                             <button onclick="setLogTypeFilter('DENIED')" id="filterBtn-DENIED" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Blocked / 403</button>
@@ -309,11 +308,11 @@
                     <div class="flex items-center space-x-2">
                         <button id="pauseLogBtn" onclick="toggleLogPause()" class="px-3 py-1.5 text-xs rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 flex items-center space-x-1">
                             <i data-lucide="pause" class="w-3.5 h-3.5" id="pauseLogIcon"></i>
-                            <span id="pauseLogText">พักชั่วคราว</span>
+                            <span id="pauseLogText">Pause</span>
                         </button>
                         <button onclick="clearLogDisplay()" class="px-3 py-1.5 text-xs rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-200 flex items-center space-x-1">
                             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                            <span>ล้างจอ</span>
+                            <span>Clear</span>
                         </button>
                     </div>
                 </div>
@@ -323,13 +322,13 @@
                     <table class="w-full text-left text-xs whitespace-nowrap">
                         <thead class="bg-slate-950/70 text-slate-400 uppercase font-mono tracking-wider sticky top-0 z-10 border-b border-slate-800">
                             <tr>
-                                <th class="px-4 py-3">เวลา (UTC)</th>
+                                <th class="px-4 py-3">Time (UTC)</th>
                                 <th class="px-4 py-3">Client IP</th>
                                 <th class="px-4 py-3">Result / Code</th>
                                 <th class="px-4 py-3">Status</th>
                                 <th class="px-4 py-3">Method</th>
                                 <th class="px-4 py-3">Domain / URL</th>
-                                <th class="px-4 py-3">ขนาด (Bytes)</th>
+                                <th class="px-4 py-3">Size</th>
                                 <th class="px-4 py-3">Duration</th>
                             </tr>
                         </thead>
@@ -343,18 +342,18 @@
             <!-- TAB 2: Top Clients -->
             <div id="tabContent-clients" class="p-4 sm:p-6 space-y-4 hidden">
                 <div class="flex justify-between items-center mb-2">
-                    <h3 class="text-sm font-semibold text-slate-200">เครื่องลูกข่ายที่มีการใช้งานสูงสุด (Top Active Clients)</h3>
-                    <span class="text-xs text-slate-400">เรียงตามจำนวน Request</span>
+                    <h3 class="text-sm font-semibold text-slate-200">Top Active Clients</h3>
+                    <span class="text-xs text-slate-400">Sorted by request count</span>
                 </div>
                 <div class="overflow-x-auto border border-slate-700/60 rounded-xl bg-slate-900/60">
                     <table class="w-full text-left text-xs">
                         <thead class="bg-slate-950/70 text-slate-400 uppercase font-mono tracking-wider border-b border-slate-800">
                             <tr>
                                 <th class="px-4 py-3">Client IP</th>
-                                <th class="px-4 py-3">จำนวนคำขอ</th>
-                                <th class="px-4 py-3">สัดส่วน Hit Ratio</th>
-                                <th class="px-4 py-3">ข้อมูลที่ส่ง (Bandwidth)</th>
-                                <th class="px-4 py-3">ใช้งานล่าสุด</th>
+                                <th class="px-4 py-3">Requests</th>
+                                <th class="px-4 py-3">Hit Ratio</th>
+                                <th class="px-4 py-3">Bandwidth</th>
+                                <th class="px-4 py-3">Last Activity</th>
                             </tr>
                         </thead>
                         <tbody id="clientsTableBody" class="divide-y divide-slate-800 font-mono">
@@ -367,18 +366,18 @@
             <!-- TAB 3: Top Domains -->
             <div id="tabContent-domains" class="p-4 sm:p-6 space-y-4 hidden">
                 <div class="flex justify-between items-center mb-2">
-                    <h3 class="text-sm font-semibold text-slate-200">เว็บไซต์และโดเมนที่ถูกเรียกใช้งานบ่อยที่สุด (Top Requested Domains)</h3>
-                    <span class="text-xs text-slate-400">รวมถึงสถิติการบล็อก</span>
+                    <h3 class="text-sm font-semibold text-slate-200">Top Requested Domains</h3>
+                    <span class="text-xs text-slate-400">Including blocked requests</span>
                 </div>
                 <div class="overflow-x-auto border border-slate-700/60 rounded-xl bg-slate-900/60">
                     <table class="w-full text-left text-xs">
                         <thead class="bg-slate-950/70 text-slate-400 uppercase font-mono tracking-wider border-b border-slate-800">
                             <tr>
                                 <th class="px-4 py-3">Domain</th>
-                                <th class="px-4 py-3">จำนวนคำขอ</th>
+                                <th class="px-4 py-3">Requests</th>
                                 <th class="px-4 py-3">Cache Hits</th>
                                 <th class="px-4 py-3">Blocked / Denied</th>
-                                <th class="px-4 py-3">ขนาดข้อมูล</th>
+                                <th class="px-4 py-3">Bandwidth</th>
                             </tr>
                         </thead>
                         <tbody id="domainsTableBody" class="divide-y divide-slate-800 font-mono">
@@ -392,7 +391,7 @@
             <div id="tabContent-cachemgr" class="p-4 sm:p-6 space-y-4 hidden">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center space-x-3">
-                        <label class="text-xs font-semibold text-slate-300">เลือกคำสั่ง Cache Manager:</label>
+                        <label class="text-xs font-semibold text-slate-300">Cache Manager Action:</label>
                         <select id="cacheMgrSelect" class="bg-slate-900 border border-slate-700 text-teal-400 text-xs font-mono rounded-lg px-3 py-1.5 focus:outline-none focus:border-teal-500">
                             <option value="info">mgr:info (General Cache Information)</option>
                             <option value="5min">mgr:5min (5-Minute Stats)</option>
@@ -409,12 +408,12 @@
 
                     <button onclick="copyCacheMgrOutput()" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs flex items-center space-x-1">
                         <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-                        <span id="copyBtnText">คัดลอกข้อความ</span>
+                        <span id="copyBtnText">Copy Output</span>
                     </button>
                 </div>
 
                 <div class="relative bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 max-h-96 overflow-y-auto" id="cacheMgrConsole">
-                    <pre id="cacheMgrOutput">กำลังโหลดข้อมูล Cache Manager...</pre>
+                    <pre id="cacheMgrOutput">Loading Cache Manager output...</pre>
                 </div>
             </div>
         </div>
@@ -424,8 +423,8 @@
     <!-- Footer -->
     <footer class="border-t border-slate-800/80 bg-slate-950/60 py-4 text-center text-xs text-slate-500">
         <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span>Squid Proxy Web Dashboard • ติดตามสถานะและวิเคราะห์การทำงานของ Squid Proxy</span>
-            <span>Developed with FastAPI & Chart.js</span>
+            <span>Squid Proxy Web Dashboard • Real-time Monitoring & Performance Analytics for Squid</span>
+            <span>Powered by FastAPI & Chart.js</span>
         </div>
     </footer>
 
@@ -552,11 +551,10 @@
                 }
             });
 
-            if (tabName === 'cachemgr' && document.getElementById('cacheMgrOutput').textContent.includes('กำลังโหลด')) {
+            if (tabName === 'cachemgr' && document.getElementById('cacheMgrOutput').textContent.includes('Loading')) {
                 executeCacheMgr();
             }
         }
-
 
         // Execute Cache Manager Query
         async function executeCacheMgr() {
@@ -576,8 +574,8 @@
             const text = document.getElementById('cacheMgrOutput').textContent;
             navigator.clipboard.writeText(text).then(() => {
                 const btnText = document.getElementById('copyBtnText');
-                btnText.textContent = "คัดลอกเรียบร้อย!";
-                setTimeout(() => { btnText.textContent = "คัดลอกข้อความ"; }, 2000);
+                btnText.textContent = "Copied!";
+                setTimeout(() => { btnText.textContent = "Copy Output"; }, 2000);
             });
         }
 
@@ -600,10 +598,10 @@
             const text = document.getElementById('pauseLogText');
             const icon = document.getElementById('pauseLogIcon');
             if (isPaused) {
-                text.textContent = "เริ่มทำงานต่อ";
+                text.textContent = "Resume";
                 icon.setAttribute('data-lucide', 'play');
             } else {
-                text.textContent = "พักชั่วคราว";
+                text.textContent = "Pause";
                 icon.setAttribute('data-lucide', 'pause');
             }
             lucide.createIcons();
@@ -638,7 +636,7 @@
         function renderLogsTable(logs) {
             const tbody = document.getElementById('logsTableBody');
             if (!logs || logs.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-500">ไม่มีข้อมูลบันทึกในขณะนี้</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-500">No log entries recorded yet</td></tr>`;
                 return;
             }
 
@@ -685,7 +683,7 @@
         function renderTopClients(clients) {
             const tbody = document.getElementById('clientsTableBody');
             if (!clients || clients.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500">ไม่มีข้อมูลเครื่องลูกข่าย</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500">No active clients recorded</td></tr>`;
                 return;
             }
             tbody.innerHTML = clients.map((c, i) => `
@@ -713,7 +711,7 @@
         function renderTopDomains(domains) {
             const tbody = document.getElementById('domainsTableBody');
             if (!domains || domains.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500">ไม่มีข้อมูลโดเมน</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500">No domains recorded</td></tr>`;
                 return;
             }
             tbody.innerHTML = domains.map(d => `
@@ -731,7 +729,7 @@
         function updateUI(state) {
             cachedStats = state;
 
-            // Status & Mode
+            // Status
             const isAlive = state.status.alive;
             const statusBadge = document.getElementById('serviceStatusBadge');
             const statusText = document.getElementById('serviceStatusText');
@@ -755,7 +753,7 @@
 
             document.getElementById('byteHitRatio').textContent = `${kpi.byte_hit_pct}%`;
             document.getElementById('byteHitBar').style.width = `${Math.min(100, kpi.byte_hit_pct)}%`;
-            document.getElementById('savedBytes').textContent = `${formatBytes(kpi.saved_bytes)} ประหยัดได้`;
+            document.getElementById('savedBytes').textContent = `${formatBytes(kpi.saved_bytes)} saved`;
             document.getElementById('kpiTotalBytes').textContent = formatBytes(kpi.total_bytes);
             document.getElementById('kpiSavedBytesShort').textContent = formatBytes(kpi.saved_bytes);
 
@@ -830,7 +828,7 @@
                     const data = JSON.parse(event.data);
                     updateUI(data);
                 } catch (e) {
-                    console.error("WS Parse error", e);
+                    console.error("WebSocket message parse error:", e);
                 }
             };
 
@@ -852,7 +850,7 @@
                 const data = await res.json();
                 updateUI(data);
             } catch (err) {
-                console.error("Fetch error", err);
+                console.error("Fetch stats error:", err);
             }
         }
 
