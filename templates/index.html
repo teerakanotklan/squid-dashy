@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Squid Proxy Dashboard | Real-Time Monitoring</title>
+    <title>Squid Proxy Admin Dashboard | Multi-Page Management</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -18,9 +18,10 @@
                             600: '#0d9488',
                             900: '#134e4a',
                         },
-                        darkbg: '#0f172a',
-                        cardbg: '#1e293b',
-                        borderbg: '#334155'
+                        darkbg: '#0a0f1d',
+                        sidebarbg: '#0d1527',
+                        cardbg: '#131d35',
+                        borderbg: '#1e293b'
                     }
                 }
             }
@@ -44,14 +45,14 @@
             height: 6px;
         }
         ::-webkit-scrollbar-track {
-            background: #0f172a;
+            background: #0a0f1d;
         }
         ::-webkit-scrollbar-thumb {
-            background: #334155;
+            background: #1e293b;
             border-radius: 3px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #475569;
+            background: #334155;
         }
         .pulse-dot {
             animation: pulseAnimation 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -60,357 +61,577 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.3; }
         }
+        .nav-link.active {
+            background: rgba(20, 184, 166, 0.12);
+            color: #2dd4bf;
+            border-right: 3px solid #14b8a6;
+        }
     </style>
 </head>
-<body class="bg-[#0b1120] text-slate-100 min-h-screen antialiased flex flex-col">
+<body class="bg-[#0a0f1d] text-slate-100 h-screen overflow-hidden antialiased flex">
 
-    <!-- Top Navigation Bar -->
-    <header class="border-b border-slate-800 bg-[#0f172a]/80 backdrop-blur sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
-                    <i data-lucide="shield-check" class="w-6 h-6 text-slate-950"></i>
-                </div>
-                <div>
-                    <div class="flex items-center space-x-2">
-                        <h1 class="font-bold text-lg text-white tracking-tight">Squid Proxy Monitor</h1>
-                        <span id="serviceStatusBadge" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 pulse-dot"></span>
-                            <span id="serviceStatusText">ONLINE</span>
-                        </span>
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div id="sidebarBackdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 hidden md:hidden transition-opacity"></div>
+
+    <!-- Admin Dashboard Sidebar -->
+    <aside id="sidebar" class="fixed md:static inset-y-0 left-0 z-50 w-64 bg-[#0d1527] border-r border-slate-800/80 flex flex-col justify-between shrink-0 transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out shadow-2xl md:shadow-none">
+        
+        <!-- Sidebar Header / Brand -->
+        <div>
+            <div class="h-16 px-5 border-b border-slate-800/80 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
+                        <i data-lucide="shield-check" class="w-6 h-6 text-slate-950"></i>
                     </div>
-                    <p class="text-xs text-slate-400 flex items-center space-x-2">
-                        <span id="squidVersion">Squid Cache</span>
-                        <span>•</span>
-                        <span id="squidEndpoint">127.0.0.1:3128</span>
-                    </p>
+                    <div>
+                        <h1 class="font-bold text-base text-white tracking-tight leading-none">Squid Dashy</h1>
+                        <span class="text-[11px] text-teal-400 font-medium">Proxy Admin v1.2</span>
+                    </div>
+                </div>
+                <!-- Close Button (Mobile Only) -->
+                <button onclick="toggleSidebar(false)" class="md:hidden text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Squid Connection Status Chip -->
+            <div class="px-4 pt-4 pb-2">
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between">
+                    <div class="flex items-center space-x-2.5">
+                        <span id="sidebarStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot"></span>
+                        <div>
+                            <span id="sidebarStatusText" class="text-xs font-bold text-slate-200 block leading-tight">ONLINE</span>
+                            <span id="sidebarEndpoint" class="text-[10px] font-mono text-slate-400">127.0.0.1:3128</span>
+                        </div>
+                    </div>
+                    <span id="sidebarVersion" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Squid</span>
                 </div>
             </div>
 
-            <!-- Header Controls -->
-            <div class="flex items-center space-x-3">
-                <!-- WebSocket Connection Indicator -->
-                <div class="hidden sm:flex items-center space-x-1.5 text-xs text-slate-400 bg-slate-800/60 px-2.5 py-1.5 rounded-lg border border-slate-800">
-                    <span id="wsIndicator" class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                    <span id="wsStatusText">Live Sync</span>
+            <!-- Sidebar Navigation Menu -->
+            <nav class="px-3 py-2 space-y-6 overflow-y-auto max-h-[calc(100vh-210px)]">
+                
+                <!-- Category: Monitoring -->
+                <div>
+                    <span class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Monitoring</span>
+                    <div class="space-y-1">
+                        <button onclick="navigatePage('dashboard')" id="nav-dashboard" class="nav-link active w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/50 transition">
+                            <div class="flex items-center space-x-3">
+                                <i data-lucide="layout-dashboard" class="w-4 h-4 text-slate-400"></i>
+                                <span>Overview</span>
+                            </div>
+                        </button>
+                        <button onclick="navigatePage('logs')" id="nav-logs" class="nav-link w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/50 transition">
+                            <div class="flex items-center space-x-3">
+                                <i data-lucide="activity" class="w-4 h-4 text-slate-400"></i>
+                                <span>Live Access Logs</span>
+                            </div>
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800">Live</span>
+                        </button>
+                        <button onclick="navigatePage('analytics')" id="nav-analytics" class="nav-link w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/50 transition">
+                            <div class="flex items-center space-x-3">
+                                <i data-lucide="bar-chart-2" class="w-4 h-4 text-slate-400"></i>
+                                <span>Traffic Analytics</span>
+                            </div>
+                        </button>
+                    </div>
                 </div>
 
+                <!-- Category: Security & Control -->
+                <div>
+                    <span class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Security & Access</span>
+                    <div class="space-y-1">
+                        <button onclick="navigatePage('blocker')" id="nav-blocker" class="nav-link w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/50 transition">
+                            <div class="flex items-center space-x-3">
+                                <i data-lucide="shield-alert" class="w-4 h-4 text-slate-400"></i>
+                                <span>Domain Blocker</span>
+                            </div>
+                            <span id="navBlockerCount" class="bg-rose-500/20 text-rose-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-rose-500/30">0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Category: Storage & Lifecycle -->
+                <div>
+                    <span class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Data & Storage</span>
+                    <div class="space-y-1">
+                        <button onclick="navigatePage('history')" id="nav-history" class="nav-link w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/50 transition">
+                            <div class="flex items-center space-x-3">
+                                <i data-lucide="history" class="w-4 h-4 text-slate-400"></i>
+                                <span>History & Retention</span>
+                            </div>
+                            <span class="bg-teal-500/10 text-teal-400 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-teal-500/20">365d</span>
+                        </button>
+                        <button onclick="navigatePage('cachemgr')" id="nav-cachemgr" class="nav-link w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/50 transition">
+                            <div class="flex items-center space-x-3">
+                                <i data-lucide="terminal" class="w-4 h-4 text-slate-400"></i>
+                                <span>Cache Manager</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Category: System -->
+                <div>
+                    <span class="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Administration</span>
+                    <div class="space-y-1">
+                        <button onclick="navigatePage('settings')" id="nav-settings" class="nav-link w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/50 transition">
+                            <div class="flex items-center space-x-3">
+                                <i data-lucide="settings" class="w-4 h-4 text-slate-400"></i>
+                                <span>System & Settings</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+            </nav>
+        </div>
+
+        <!-- Sidebar Footer -->
+        <div class="p-3 border-t border-slate-800/80 bg-slate-900/40">
+            <a href="https://github.com/teerakanotklan/squid-dashy" target="_blank" class="flex items-center justify-between p-2 rounded-xl text-xs text-slate-400 hover:text-white hover:bg-slate-800/60 transition">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="github" class="w-4 h-4"></i>
+                    <span>GitHub Repository</span>
+                </div>
+                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Viewport Wrapper -->
+    <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        
+        <!-- Top App Header -->
+        <header class="h-16 border-b border-slate-800/80 bg-[#0d1527]/90 backdrop-blur sticky top-0 z-30 flex items-center justify-between px-4 sm:px-6 shrink-0">
+            <!-- Left: Mobile Toggle & Page Title -->
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleSidebar(true)" class="md:hidden text-slate-400 hover:text-white p-1.5 rounded-lg border border-slate-800 bg-slate-900">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                <div>
+                    <div class="flex items-center space-x-2 text-xs text-slate-400">
+                        <span>Squid Dashy</span>
+                        <span>/</span>
+                        <span id="breadcrumbCurrent" class="text-teal-400 font-medium">Overview</span>
+                    </div>
+                    <h2 id="pageTitleHeading" class="font-bold text-base text-white tracking-tight">System Overview</h2>
+                </div>
+            </div>
+
+            <!-- Right: Status, Refresh, Clock -->
+            <div class="flex items-center space-x-3">
+                <!-- Status Badges Container (TCP_HIT, etc) -->
+                <div id="statusBadgesContainer" class="hidden xl:flex items-center space-x-1.5">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Live Sync WebSocket Indicator -->
+                <div class="flex items-center space-x-1.5 text-xs text-slate-300 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-800">
+                    <span id="wsIndicator" class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+                    <span id="wsStatusText" class="font-medium">Live Sync</span>
+                </div>
+
+                <!-- Manual Refresh Button -->
+                <button onclick="triggerManualRefresh()" id="refreshBtn" title="Refresh Live Data" class="p-2 rounded-xl border border-slate-800 bg-slate-900/90 text-slate-300 hover:text-white hover:bg-slate-800 transition">
+                    <i data-lucide="refresh-cw" class="w-4 h-4" id="refreshIcon"></i>
+                </button>
+
                 <!-- Clock -->
-                <div class="hidden md:block text-xs font-mono text-slate-400 bg-slate-800/40 px-2.5 py-1.5 rounded-lg border border-slate-800" id="liveClock">
+                <div class="hidden sm:block text-xs font-mono text-slate-400 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-slate-800" id="liveClock">
                     00:00:00
                 </div>
             </div>
-        </div>
-    </header>
+        </header>
 
-    <!-- Main Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <!-- Dynamic Main Content (Scrollable Container) -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
 
-        <!-- KPI Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            
-            <!-- Card 1: Request Hit Ratio -->
-            <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur shadow-sm relative overflow-hidden group hover:border-teal-500/50 transition">
-                <div class="absolute -right-3 -top-3 w-20 h-20 bg-teal-500/10 rounded-full blur-xl group-hover:bg-teal-500/20 transition"></div>
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Request Hit Ratio</span>
-                    <div class="p-2 rounded-lg bg-teal-500/10 text-teal-400">
-                        <i data-lucide="zap" class="w-4 h-4"></i>
-                    </div>
-                </div>
-                <div class="flex items-baseline space-x-2">
-                    <span class="text-3xl font-bold text-white tracking-tight" id="reqHitRatio">0.0%</span>
-                    <span class="text-xs text-slate-400">of total requests</span>
-                </div>
-                <div class="mt-3 w-full bg-slate-700/60 h-2 rounded-full overflow-hidden">
-                    <div id="reqHitBar" class="bg-gradient-to-r from-teal-500 to-emerald-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
-                </div>
-                <div class="mt-2.5 flex justify-between text-xs text-slate-400">
-                    <span>Hits: <strong class="text-emerald-400" id="kpiHitCount">0</strong></span>
-                    <span>Misses: <strong class="text-amber-400" id="kpiMissCount">0</strong></span>
-                </div>
-            </div>
-
-            <!-- Card 2: Byte Hit Ratio (Bandwidth Saved) -->
-            <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur shadow-sm relative overflow-hidden group hover:border-emerald-500/50 transition">
-                <div class="absolute -right-3 -top-3 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition"></div>
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Byte Hit Ratio</span>
-                    <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-                        <i data-lucide="arrow-down-to-line" class="w-4 h-4"></i>
-                    </div>
-                </div>
-                <div class="flex items-baseline space-x-2">
-                    <span class="text-3xl font-bold text-white tracking-tight" id="byteHitRatio">0.0%</span>
-                    <span class="text-xs text-emerald-400 font-medium" id="savedBytes">0 MB saved</span>
-                </div>
-                <div class="mt-3 w-full bg-slate-700/60 h-2 rounded-full overflow-hidden">
-                    <div id="byteHitBar" class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
-                </div>
-                <div class="mt-2.5 flex justify-between text-xs text-slate-400">
-                    <span>Total: <strong class="text-slate-300" id="kpiTotalBytes">0 MB</strong></span>
-                    <span>Saved: <strong class="text-emerald-400" id="kpiSavedBytesShort">0 MB</strong></span>
-                </div>
-            </div>
-
-            <!-- Card 3: Throughput & Requests Rate -->
-            <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur shadow-sm relative overflow-hidden group hover:border-cyan-500/50 transition">
-                <div class="absolute -right-3 -top-3 w-20 h-20 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition"></div>
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Throughput & Requests</span>
-                    <div class="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
-                        <i data-lucide="activity" class="w-4 h-4"></i>
-                    </div>
-                </div>
-                <div class="flex items-baseline space-x-2">
-                    <span class="text-3xl font-bold text-white tracking-tight" id="reqPerSec">0.0</span>
-                    <span class="text-xs text-slate-400">req/s</span>
-                </div>
-                <div class="mt-3 flex items-center justify-between text-xs text-slate-300 border-t border-slate-700/50 pt-2">
-                    <span>Bandwidth:</span>
-                    <span class="font-mono font-semibold text-cyan-300" id="bandwidthSec">0 KB/s</span>
-                </div>
-                <div class="mt-1 flex items-center justify-between text-xs text-slate-400">
-                    <span>Total Requests:</span>
-                    <span class="font-semibold text-slate-200" id="kpiTotalRequests">0</span>
-                </div>
-            </div>
-
-            <!-- Card 4: Hardware & Cache Storage -->
-            <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur shadow-sm relative overflow-hidden group hover:border-indigo-500/50 transition">
-                <div class="absolute -right-3 -top-3 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition"></div>
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Resources & Storage</span>
-                    <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
-                        <i data-lucide="hard-drive" class="w-4 h-4"></i>
-                    </div>
-                </div>
-                <div class="space-y-2 text-xs">
-                    <div>
-                        <div class="flex justify-between text-slate-400 mb-1">
-                            <span>Disk Cache</span>
-                            <span class="font-mono text-slate-300" id="diskCacheText">0 / 10 GB</span>
+            <!-- ========================================== -->
+            <!-- PAGE 1: OVERVIEW / DASHBOARD               -->
+            <!-- ========================================== -->
+            <div id="view-dashboard" class="page-view space-y-6">
+                <!-- Top KPI Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Card 1: Request Hit Ratio -->
+                    <div class="bg-slate-850/80 bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 shadow-sm relative overflow-hidden group hover:border-teal-500/50 transition">
+                        <div class="absolute -right-3 -top-3 w-20 h-20 bg-teal-500/10 rounded-full blur-xl group-hover:bg-teal-500/20 transition"></div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Request Hit Ratio</span>
+                            <div class="p-2 rounded-lg bg-teal-500/10 text-teal-400">
+                                <i data-lucide="zap" class="w-4 h-4"></i>
+                            </div>
                         </div>
-                        <div class="w-full bg-slate-700/60 h-1.5 rounded-full overflow-hidden">
-                            <div id="diskCacheBar" class="bg-indigo-400 h-1.5 rounded-full" style="width: 20%"></div>
+                        <div class="flex items-baseline space-x-2">
+                            <span class="text-3xl font-extrabold text-white tracking-tight" id="reqHitRatio">0.0%</span>
+                            <span class="text-xs text-teal-400 font-medium">served from cache</span>
                         </div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-slate-400 mb-1">
-                            <span>RAM Cache</span>
-                            <span class="font-mono text-slate-300" id="ramCacheText">0 / 512 MB</span>
+                        <div class="w-full bg-slate-800/80 h-1.5 rounded-full mt-3 overflow-hidden">
+                            <div id="reqHitBar" class="bg-gradient-to-r from-teal-500 to-emerald-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                         </div>
-                        <div class="w-full bg-slate-700/60 h-1.5 rounded-full overflow-hidden">
-                            <div id="ramCacheBar" class="bg-purple-400 h-1.5 rounded-full" style="width: 30%"></div>
-                        </div>
-                    </div>
-                    <div class="flex justify-between text-slate-400 pt-1 border-t border-slate-700/40">
-                        <span>CPU: <strong class="text-slate-200" id="cpuUsage">0%</strong></span>
-                        <span>Clients: <strong class="text-teal-400" id="activeClientsCount">0</strong></span>
-                        <span>FDs: <strong class="text-slate-200" id="fdUsage">0</strong></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Charts Row -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Chart 1: Realtime Traffic Timeline (2 cols) -->
-            <div class="lg:col-span-2 bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center space-x-2">
-                        <i data-lucide="trending-up" class="w-5 h-5 text-teal-400"></i>
-                        <h2 class="font-semibold text-slate-200 text-sm">Real-time Throughput & Traffic Timeline</h2>
-                    </div>
-                    <span class="text-xs text-slate-400 font-mono">Updated every 2s</span>
-                </div>
-                <div class="h-64">
-                    <canvas id="trafficChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Chart 2: Hit vs Miss vs Denied Doughnut (1 col) -->
-            <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur flex flex-col">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center space-x-2">
-                        <i data-lucide="pie-chart" class="w-5 h-5 text-emerald-400"></i>
-                        <h2 class="font-semibold text-slate-200 text-sm">Cache Result Ratio (Hit / Miss / Denied)</h2>
-                    </div>
-                </div>
-                <div class="flex-1 flex items-center justify-center h-48">
-                    <canvas id="hitDonutChart"></canvas>
-                </div>
-                <div class="grid grid-cols-3 gap-2 mt-4 text-center text-xs">
-                    <div class="bg-slate-900/40 p-2 rounded-lg border border-slate-700/40">
-                        <span class="block text-emerald-400 font-bold" id="donutHit">0</span>
-                        <span class="text-slate-400">Hits</span>
-                    </div>
-                    <div class="bg-slate-900/40 p-2 rounded-lg border border-slate-700/40">
-                        <span class="block text-amber-400 font-bold" id="donutMiss">0</span>
-                        <span class="text-slate-400">Misses</span>
-                    </div>
-                    <div class="bg-slate-900/40 p-2 rounded-lg border border-slate-700/40">
-                        <span class="block text-rose-400 font-bold" id="donutDenied">0</span>
-                        <span class="text-slate-400">Denied</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tabbed Section -->
-        <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl backdrop-blur overflow-hidden">
-            <!-- Tabs Navigation -->
-            <div class="border-b border-slate-700/80 bg-slate-900/50 px-4 flex flex-wrap items-center justify-between gap-3">
-                <nav class="flex space-x-2 sm:space-x-4">
-                    <button onclick="switchTab('logs')" id="tabBtn-logs" class="tab-btn px-3 py-3.5 text-xs sm:text-sm font-medium border-b-2 border-teal-500 text-teal-400 flex items-center space-x-2 transition">
-                        <i data-lucide="list" class="w-4 h-4"></i>
-                        <span>Live Access Logs</span>
-                    </button>
-                    <button onclick="switchTab('clients')" id="tabBtn-clients" class="tab-btn px-3 py-3.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition">
-                        <i data-lucide="users" class="w-4 h-4"></i>
-                        <span>Top Client IPs</span>
-                    </button>
-                    <button onclick="switchTab('domains')" id="tabBtn-domains" class="tab-btn px-3 py-3.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition">
-                        <i data-lucide="globe" class="w-4 h-4"></i>
-                        <span>Top Domains & Blocks</span>
-                    </button>
-                    <button onclick="switchTab('blocker')" id="tabBtn-blocker" class="tab-btn px-3 py-3.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition">
-                        <i data-lucide="shield-alert" class="w-4 h-4"></i>
-                        <span>Domain Blocker</span>
-                        <span id="blockerCountPill" class="bg-rose-500/20 text-rose-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-rose-500/30">0</span>
-                    </button>
-                    <button onclick="switchTab('history')" id="tabBtn-history" class="tab-btn px-3 py-3.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition">
-                        <i data-lucide="history" class="w-4 h-4"></i>
-                        <span>History & Retention</span>
-                    </button>
-                    <button onclick="switchTab('cachemgr')" id="tabBtn-cachemgr" class="tab-btn px-3 py-3.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition">
-                        <i data-lucide="terminal" class="w-4 h-4"></i>
-                        <span>Squid Cache Manager (mgr:info)</span>
-                    </button>
-                </nav>
-
-                <!-- Status Counters Quick Chips -->
-                <div id="statusBadgesContainer" class="hidden sm:flex items-center space-x-2 py-2">
-                    <!-- Populated dynamically -->
-                </div>
-            </div>
-
-            <!-- TAB 1: Live Access Logs -->
-            <div id="tabContent-logs" class="p-4 sm:p-6 space-y-4">
-                <!-- Log Controls -->
-                <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <!-- Search input -->
-                        <div class="relative w-full sm:w-64">
-                            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
-                            <input type="text" id="logSearchInput" oninput="applyLogFilters()" placeholder="Search IP, Domain, URL..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500">
-                        </div>
-                        <!-- Filter Type -->
-                        <div class="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-700 text-xs">
-                            <button onclick="setLogTypeFilter('ALL')" id="filterBtn-ALL" class="px-2.5 py-1 rounded-md bg-teal-600 text-white font-medium">All</button>
-                            <button onclick="setLogTypeFilter('HIT')" id="filterBtn-HIT" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Hits Only</button>
-                            <button onclick="setLogTypeFilter('MISS')" id="filterBtn-MISS" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Miss Only</button>
-                            <button onclick="setLogTypeFilter('DENIED')" id="filterBtn-DENIED" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Blocked / 403</button>
+                        <div class="mt-3 flex justify-between text-[11px] text-slate-400">
+                            <span>Hits: <strong class="text-slate-200" id="kpiHitCount">0</strong></span>
+                            <span>Misses: <strong class="text-slate-200" id="kpiMissCount">0</strong></span>
                         </div>
                     </div>
 
-                    <div class="flex items-center space-x-2">
-                        <button id="pauseLogBtn" onclick="toggleLogPause()" class="px-3 py-1.5 text-xs rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 flex items-center space-x-1">
-                            <i data-lucide="pause" class="w-3.5 h-3.5" id="pauseLogIcon"></i>
-                            <span id="pauseLogText">Pause</span>
-                        </button>
-                        <button onclick="clearLogDisplay()" class="px-3 py-1.5 text-xs rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-200 flex items-center space-x-1">
-                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                            <span>Clear</span>
-                        </button>
+                    <!-- Card 2: Bandwidth Saved -->
+                    <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 shadow-sm relative overflow-hidden group hover:border-sky-500/50 transition">
+                        <div class="absolute -right-3 -top-3 w-20 h-20 bg-sky-500/10 rounded-full blur-xl group-hover:bg-sky-500/20 transition"></div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Bandwidth Saved</span>
+                            <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400">
+                                <i data-lucide="arrow-down-to-line" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline space-x-2">
+                            <span class="text-3xl font-extrabold text-white tracking-tight" id="byteHitRatio">0.0%</span>
+                            <span class="text-xs text-sky-400 font-medium" id="savedBytes">0 B saved</span>
+                        </div>
+                        <div class="w-full bg-slate-800/80 h-1.5 rounded-full mt-3 overflow-hidden">
+                            <div id="byteHitBar" class="bg-gradient-to-r from-sky-500 to-teal-400 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <div class="mt-3 flex justify-between text-[11px] text-slate-400">
+                            <span>Total Ingest: <strong class="text-slate-200" id="kpiTotalBytes">0 B</strong></span>
+                            <span>Saved: <strong class="text-sky-300" id="kpiSavedBytesShort">0 B</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Request Rate -->
+                    <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 shadow-sm relative overflow-hidden group hover:border-purple-500/50 transition">
+                        <div class="absolute -right-3 -top-3 w-20 h-20 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition"></div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Throughput Rate</span>
+                            <div class="p-2 rounded-lg bg-purple-500/10 text-purple-400">
+                                <i data-lucide="gauge" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline space-x-2">
+                            <span class="text-3xl font-extrabold text-white tracking-tight" id="reqPerSec">0.0</span>
+                            <span class="text-xs text-purple-300 font-medium">req / sec</span>
+                        </div>
+                        <div class="mt-3 flex items-center justify-between text-[11px] text-slate-400 pt-1.5 border-t border-slate-800">
+                            <span>Current Bandwidth:</span>
+                            <span class="font-mono text-purple-300 font-semibold" id="bandwidthSec">0.0 KB/s</span>
+                        </div>
+                        <div class="mt-1 flex items-center justify-between text-[11px] text-slate-400">
+                            <span>Total Requests:</span>
+                            <span class="font-mono text-slate-200" id="kpiTotalRequests">0</span>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: System Health & Hardware -->
+                    <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 shadow-sm relative overflow-hidden group hover:border-emerald-500/50 transition">
+                        <div class="absolute -right-3 -top-3 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition"></div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Squid Resources</span>
+                            <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                                <i data-lucide="cpu" class="w-4 h-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-baseline space-x-2">
+                            <span class="text-3xl font-extrabold text-white tracking-tight" id="cpuUsage">0.0%</span>
+                            <span class="text-xs text-emerald-400 font-medium">CPU Usage</span>
+                        </div>
+                        <div class="mt-3 flex items-center justify-between text-[11px] text-slate-400 pt-1.5 border-t border-slate-800">
+                            <span>Active Clients:</span>
+                            <span class="font-mono text-emerald-400 font-semibold" id="activeClientsCount">0</span>
+                        </div>
+                        <div class="mt-1 flex items-center justify-between text-[11px] text-slate-400">
+                            <span>File Descriptors:</span>
+                            <span class="font-mono text-slate-200" id="fdUsage">0 / 0</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Logs Table -->
-                <div class="overflow-x-auto border border-slate-700/60 rounded-xl bg-slate-900/60 max-h-96 overflow-y-auto">
-                    <table class="w-full text-left text-xs whitespace-nowrap">
-                        <thead class="bg-slate-950/70 text-slate-400 uppercase font-mono tracking-wider sticky top-0 z-10 border-b border-slate-800">
-                            <tr>
-                                <th class="px-4 py-3">Time (UTC)</th>
-                                <th class="px-4 py-3">Client IP</th>
-                                <th class="px-4 py-3">Result / Code</th>
-                                <th class="px-4 py-3">Status</th>
-                                <th class="px-4 py-3">Method</th>
-                                <th class="px-4 py-3">Domain / URL</th>
-                                <th class="px-4 py-3">Size</th>
-                                <th class="px-4 py-3">Duration</th>
-                                <th class="px-4 py-3 text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="logsTableBody" class="divide-y divide-slate-800/60 font-mono">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
+                <!-- Secondary Resource Utilization Row -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- RAM Cache Bar -->
+                    <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-4 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2 rounded-xl bg-teal-500/10 text-teal-400">
+                                <i data-lucide="layers" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <span class="text-xs text-slate-400 block">RAM Cache Utilization</span>
+                                <span class="font-mono text-sm font-bold text-slate-200" id="ramCacheText">0 / 0 MB</span>
+                            </div>
+                        </div>
+                        <div class="w-36 bg-slate-800 h-2 rounded-full overflow-hidden">
+                            <div id="ramCacheBar" class="bg-teal-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Disk Swap Cache Bar -->
+                    <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-4 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2 rounded-xl bg-sky-500/10 text-sky-400">
+                                <i data-lucide="hard-drive" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <span class="text-xs text-slate-400 block">Disk Swap Cache Storage</span>
+                                <span class="font-mono text-sm font-bold text-slate-200" id="diskCacheText">0 / 0 GB</span>
+                            </div>
+                        </div>
+                        <div class="w-36 bg-slate-800 h-2 rounded-full overflow-hidden">
+                            <div id="diskCacheBar" class="bg-sky-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-Time Charts Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Real-Time Throughput Timeline Chart (2 cols) -->
+                    <div class="lg:col-span-2 bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-semibold text-sm text-white">Live Traffic Throughput</h3>
+                                <p class="text-xs text-slate-400">Real-time requests/sec & bandwidth rate (last 60 seconds)</p>
+                            </div>
+                            <div class="flex items-center space-x-2 text-xs">
+                                <span class="inline-flex items-center space-x-1.5 text-teal-400">
+                                    <span class="w-2 h-2 rounded-full bg-teal-400"></span>
+                                    <span>Req/s</span>
+                                </span>
+                                <span class="inline-flex items-center space-x-1.5 text-sky-400 ml-2">
+                                    <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                                    <span>KB/s</span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="h-64">
+                            <canvas id="trafficChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Cache Result Donut Distribution (1 col) -->
+                    <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-semibold text-sm text-white">Cache Result Distribution</h3>
+                            <p class="text-xs text-slate-400">Proportion of Hits, Misses, and Denied</p>
+                        </div>
+                        <div class="h-48 my-3 relative flex items-center justify-center">
+                            <canvas id="hitDonutChart"></canvas>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-center text-xs pt-3 border-t border-slate-800/80">
+                            <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-800/60">
+                                <span class="block text-emerald-400 font-bold" id="donutHit">0</span>
+                                <span class="text-slate-400 text-[11px]">Hits</span>
+                            </div>
+                            <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-800/60">
+                                <span class="block text-sky-400 font-bold" id="donutMiss">0</span>
+                                <span class="text-slate-400 text-[11px]">Misses</span>
+                            </div>
+                            <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-800/60">
+                                <span class="block text-rose-400 font-bold" id="donutDenied">0</span>
+                                <span class="text-slate-400 text-[11px]">Denied</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Snapshot Preview Tables -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Top 5 Clients Preview -->
+                    <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <i data-lucide="users" class="w-4 h-4 text-teal-400"></i>
+                                <h3 class="font-semibold text-sm text-white">Top Active Clients</h3>
+                            </div>
+                            <button onclick="navigatePage('analytics')" class="text-xs text-teal-400 hover:text-teal-300 font-medium flex items-center space-x-1">
+                                <span>View All</span>
+                                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto border border-slate-800/80 rounded-xl bg-slate-950/40">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-900/70 text-slate-400 font-mono text-[11px] uppercase border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-3 py-2.5">Client IP</th>
+                                        <th class="px-3 py-2.5">Requests</th>
+                                        <th class="px-3 py-2.5">Hit Ratio</th>
+                                        <th class="px-3 py-2.5">Bandwidth</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="overviewClientsTable" class="divide-y divide-slate-800/60 font-mono">
+                                    <tr><td colspan="4" class="text-center py-4 text-slate-500">Loading clients...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Top 5 Domains Preview -->
+                    <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <i data-lucide="globe" class="w-4 h-4 text-sky-400"></i>
+                                <h3 class="font-semibold text-sm text-white">Top Requested Domains</h3>
+                            </div>
+                            <button onclick="navigatePage('analytics')" class="text-xs text-sky-400 hover:text-sky-300 font-medium flex items-center space-x-1">
+                                <span>View All</span>
+                                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto border border-slate-800/80 rounded-xl bg-slate-950/40">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-900/70 text-slate-400 font-mono text-[11px] uppercase border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-3 py-2.5">Domain</th>
+                                        <th class="px-3 py-2.5">Requests</th>
+                                        <th class="px-3 py-2.5">Hit %</th>
+                                        <th class="px-3 py-2.5 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="overviewDomainsTable" class="divide-y divide-slate-800/60 font-mono">
+                                    <tr><td colspan="4" class="text-center py-4 text-slate-500">Loading domains...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- TAB 2: Top Clients -->
-            <div id="tabContent-clients" class="p-4 sm:p-6 space-y-4 hidden">
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="text-sm font-semibold text-slate-200">Top Active Clients</h3>
-                    <span class="text-xs text-slate-400">Sorted by request count</span>
-                </div>
-                <div class="overflow-x-auto border border-slate-700/60 rounded-xl bg-slate-900/60">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-slate-950/70 text-slate-400 uppercase font-mono tracking-wider border-b border-slate-800">
-                            <tr>
-                                <th class="px-4 py-3">Client IP</th>
-                                <th class="px-4 py-3">Requests</th>
-                                <th class="px-4 py-3">Hit Ratio</th>
-                                <th class="px-4 py-3">Bandwidth</th>
-                                <th class="px-4 py-3">Last Activity</th>
-                            </tr>
-                        </thead>
-                        <tbody id="clientsTableBody" class="divide-y divide-slate-800 font-mono">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
+            <!-- ========================================== -->
+            <!-- PAGE 2: LIVE ACCESS LOGS                   -->
+            <!-- ========================================== -->
+            <div id="view-logs" class="page-view space-y-4 hidden">
+                <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 space-y-4">
+                    <!-- Controls Toolbar -->
+                    <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <!-- Search -->
+                            <div class="relative w-full sm:w-72">
+                                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+                                <input type="text" id="logSearchInput" oninput="applyLogFilters()" placeholder="Search IP, Domain, URL, Code..." class="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-700/80 text-slate-200 focus:outline-none focus:border-teal-500 font-mono">
+                            </div>
+                            <!-- Status Filters -->
+                            <div class="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800 text-xs">
+                                <button onclick="setLogTypeFilter('ALL')" id="filterBtn-ALL" class="px-3 py-1 rounded-lg bg-teal-600 text-white font-medium">All</button>
+                                <button onclick="setLogTypeFilter('HIT')" id="filterBtn-HIT" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white">Hits Only</button>
+                                <button onclick="setLogTypeFilter('MISS')" id="filterBtn-MISS" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white">Miss Only</button>
+                                <button onclick="setLogTypeFilter('DENIED')" id="filterBtn-DENIED" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white">Blocked / 403</button>
+                            </div>
+                        </div>
+
+                        <!-- Actions (Pause, Clear) -->
+                        <div class="flex items-center space-x-2">
+                            <button id="pauseLogBtn" onclick="toggleLogPause()" class="px-3 py-2 text-xs rounded-xl border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 flex items-center space-x-1.5 transition">
+                                <i data-lucide="pause" class="w-3.5 h-3.5" id="pauseLogIcon"></i>
+                                <span id="pauseLogText">Pause Stream</span>
+                            </button>
+                            <button onclick="clearLogDisplay()" class="px-3 py-2 text-xs rounded-xl border border-slate-700 bg-slate-900 text-slate-400 hover:text-rose-400 hover:border-rose-900 flex items-center space-x-1.5 transition">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                <span>Clear Display</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Log Streaming Table -->
+                    <div class="overflow-x-auto border border-slate-800/80 rounded-xl bg-slate-950/70 max-h-[640px] overflow-y-auto">
+                        <table class="w-full text-left text-xs whitespace-nowrap">
+                            <thead class="bg-slate-900/90 text-slate-400 uppercase font-mono tracking-wider sticky top-0 z-10 border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-3">Time (UTC)</th>
+                                    <th class="px-4 py-3">Client IP</th>
+                                    <th class="px-4 py-3">Result / Code</th>
+                                    <th class="px-4 py-3">HTTP Status</th>
+                                    <th class="px-4 py-3">Method</th>
+                                    <th class="px-4 py-3">Domain / URL</th>
+                                    <th class="px-4 py-3">Size</th>
+                                    <th class="px-4 py-3">Latency</th>
+                                    <th class="px-4 py-3 text-right">Quick Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTableBody" class="divide-y divide-slate-800/60 font-mono">
+                                <tr><td colspan="9" class="text-center py-10 text-slate-500">Connecting to live log stream...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- TAB 3: Top Domains -->
-            <div id="tabContent-domains" class="p-4 sm:p-6 space-y-4 hidden">
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="text-sm font-semibold text-slate-200">Top Requested Domains</h3>
-                    <span class="text-xs text-slate-400">Including blocked requests</span>
+            <!-- ========================================== -->
+            <!-- PAGE 3: TRAFFIC ANALYTICS                  -->
+            <!-- ========================================== -->
+            <div id="view-analytics" class="page-view space-y-6 hidden">
+                <!-- Top Clients Card -->
+                <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="users" class="w-5 h-5 text-teal-400"></i>
+                            <div>
+                                <h3 class="font-bold text-sm text-white">Top Active Client Machines</h3>
+                                <p class="text-xs text-slate-400">Client devices ranked by total request volume and cache hit performance</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto border border-slate-800/80 rounded-xl bg-slate-950/50">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-900/80 text-slate-400 uppercase font-mono tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-3">Rank / Client IP</th>
+                                    <th class="px-4 py-3">Total Requests</th>
+                                    <th class="px-4 py-3">Cache Hit Ratio</th>
+                                    <th class="px-4 py-3">Bandwidth Ingest</th>
+                                    <th class="px-4 py-3">Last Active</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientsTableBody" class="divide-y divide-slate-800/80 font-mono">
+                                <tr><td colspan="5" class="text-center py-8 text-slate-500">No client data yet</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="overflow-x-auto border border-slate-700/60 rounded-xl bg-slate-900/60">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-slate-950/70 text-slate-400 uppercase font-mono tracking-wider border-b border-slate-800">
-                            <tr>
-                                <th class="px-4 py-3">Domain</th>
-                                <th class="px-4 py-3">Requests</th>
-                                <th class="px-4 py-3">Cache Hits</th>
-                                <th class="px-4 py-3">Blocked / Denied</th>
-                                <th class="px-4 py-3">Bandwidth</th>
-                                <th class="px-4 py-3 text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="domainsTableBody" class="divide-y divide-slate-800 font-mono">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
+
+                <!-- Top Domains Card -->
+                <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="globe" class="w-5 h-5 text-sky-400"></i>
+                            <div>
+                                <h3 class="font-bold text-sm text-white">Top Requested Internet Domains</h3>
+                                <p class="text-xs text-slate-400">Most requested destinations, cache hit efficiency, and quick block control</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto border border-slate-800/80 rounded-xl bg-slate-950/50">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-900/80 text-slate-400 uppercase font-mono tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-3">Domain</th>
+                                    <th class="px-4 py-3">Requests</th>
+                                    <th class="px-4 py-3">Cache Hits</th>
+                                    <th class="px-4 py-3">Blocked / Denied</th>
+                                    <th class="px-4 py-3">Bandwidth</th>
+                                    <th class="px-4 py-3 text-right">Security Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="domainsTableBody" class="divide-y divide-slate-800/80 font-mono">
+                                <tr><td colspan="6" class="text-center py-8 text-slate-500">No domain data yet</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- TAB 4: Domain Blocker -->
-            <div id="tabContent-blocker" class="p-4 sm:p-6 space-y-5 hidden">
+            <!-- ========================================== -->
+            <!-- PAGE 4: DOMAIN BLOCKER                     -->
+            <!-- ========================================== -->
+            <div id="view-blocker" class="page-view space-y-6 hidden">
                 <!-- Notification Alert Banner -->
                 <div id="blockerAlert" class="hidden p-3 rounded-xl text-xs flex items-center justify-between border"></div>
 
-                <!-- Top Controls & Add Form -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <!-- Form Card (2 cols) -->
-                    <div class="lg:col-span-2 bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-3">
+                <!-- Controls & Add Form Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                    <!-- Add Domain Card (2 cols) -->
+                    <div class="lg:col-span-2 bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 space-y-3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-2">
                                 <i data-lucide="plus-circle" class="w-4 h-4 text-rose-400"></i>
-                                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-200">Add Domain to Blocklist</h3>
+                                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-200">Add Domain to Blacklist</h3>
                             </div>
                             <span class="text-[11px] text-slate-400 font-mono truncate max-w-xs" id="blocklistFilePath">/etc/squid/blocked_domains.acl</span>
                         </div>
@@ -418,9 +639,9 @@
                         <form onsubmit="handleAddDomain(event)" class="flex flex-col sm:flex-row gap-2">
                             <div class="relative flex-1">
                                 <i data-lucide="globe" class="w-4 h-4 absolute left-3 top-3 text-slate-500"></i>
-                                <input type="text" id="newBlockDomainInput" required placeholder="e.g. tiktok.com or .facebook.com (leading dot blocks subdomains)" class="w-full pl-9 pr-3 py-2 text-xs rounded-lg bg-slate-950 border border-slate-700 text-slate-200 font-mono focus:outline-none focus:border-rose-500">
+                                <input type="text" id="newBlockDomainInput" required placeholder="e.g. tiktok.com or .facebook.com (leading dot blocks subdomains)" class="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-700/80 text-slate-200 font-mono focus:outline-none focus:border-rose-500">
                             </div>
-                            <button type="submit" id="addBlockBtn" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs flex items-center justify-center space-x-1.5 transition whitespace-nowrap">
+                            <button type="submit" id="addBlockBtn" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs flex items-center justify-center space-x-1.5 transition whitespace-nowrap shadow-lg shadow-rose-950">
                                 <i data-lucide="shield-alert" class="w-4 h-4"></i>
                                 <span>Block Domain</span>
                             </button>
@@ -430,15 +651,15 @@
                         </p>
                     </div>
 
-                    <!-- Action Card (1 col) -->
-                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-3">
+                    <!-- Squid Sync Card (1 col) -->
+                    <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between space-y-3">
                         <div>
                             <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Squid ACL Sync</h3>
                             <p class="text-[11px] text-slate-400 leading-relaxed">
-                                Changes are loaded via <code class="text-teal-300 font-mono">squid -k reconfigure</code> without dropping active proxy connections.
+                                Rule modifications reload via <code class="text-teal-300 font-mono">squid -k reconfigure</code> without interrupting active connections.
                             </p>
                         </div>
-                        <button onclick="reloadSquidACLs()" id="syncAclBtn" class="w-full px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium flex items-center justify-center space-x-2 transition">
+                        <button onclick="reloadSquidACLs()" id="syncAclBtn" class="w-full px-3 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-200 text-xs font-medium flex items-center justify-center space-x-2 transition">
                             <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-teal-400" id="syncAclIcon"></i>
                             <span id="syncAclText">Reload Squid ACLs Now</span>
                         </button>
@@ -446,40 +667,42 @@
                 </div>
 
                 <!-- Blocked Domains List Table -->
-                <div class="space-y-3">
-                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
                         <div class="flex items-center space-x-2">
-                            <h3 class="text-sm font-semibold text-slate-200">Active Blocked Domains</h3>
-                            <span id="blockedTotalBadge" class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-mono">0 domains</span>
+                            <h3 class="text-sm font-semibold text-slate-200">Active Blacklisted Domains</h3>
+                            <span id="blockedTotalBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-900 text-rose-300 border border-rose-900/60 font-mono">0 domains</span>
                         </div>
                         <div class="relative w-full sm:w-64">
                             <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500"></i>
-                            <input type="text" id="blockedSearchInput" oninput="filterBlockedDomains()" placeholder="Filter blocked domains..." class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-rose-500">
+                            <input type="text" id="blockedSearchInput" oninput="filterBlockedDomains()" placeholder="Filter blocked domains..." class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-slate-950 border border-slate-700/80 text-slate-200 focus:outline-none focus:border-rose-500 font-mono">
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto border border-slate-700/60 rounded-xl bg-slate-900/60 max-h-96 overflow-y-auto">
+                    <div class="overflow-x-auto border border-slate-800/80 rounded-xl bg-slate-950/50 max-h-96 overflow-y-auto">
                         <table class="w-full text-left text-xs">
-                            <thead class="bg-slate-950/70 text-slate-400 uppercase font-mono tracking-wider sticky top-0 z-10 border-b border-slate-800">
+                            <thead class="bg-slate-900/80 text-slate-400 uppercase font-mono tracking-wider sticky top-0 z-10 border-b border-slate-800">
                                 <tr>
                                     <th class="px-4 py-3">#</th>
                                     <th class="px-4 py-3">Blocked Domain</th>
-                                    <th class="px-4 py-3">Rule Scope</th>
+                                    <th class="px-4 py-3">Scope</th>
                                     <th class="px-4 py-3 text-right">Action</th>
                                 </tr>
                             </thead>
-                            <tbody id="blockedTableBody" class="divide-y divide-slate-800 font-mono">
-                                <!-- Populated dynamically -->
+                            <tbody id="blockedTableBody" class="divide-y divide-slate-800/80 font-mono">
+                                <tr><td colspan="4" class="text-center py-8 text-slate-500">Loading blocklist...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB 5: History & Graylog-style Retention Lifecycle -->
-            <div id="tabContent-history" class="p-4 sm:p-6 space-y-6 hidden">
+            <!-- ========================================== -->
+            <!-- PAGE 5: HISTORY & RETENTION (365d)         -->
+            <!-- ========================================== -->
+            <div id="view-history" class="page-view space-y-6 hidden">
                 <!-- Retention Pipeline Overview Card -->
-                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-4">
+                <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
                         <div>
                             <div class="flex items-center space-x-2">
@@ -488,7 +711,7 @@
                             </div>
                             <p class="text-xs text-slate-400 mt-0.5">Automated time-sliced log archiving, 30-day monthly consolidation, 91-day rotation purge, and 365-day metric preservation.</p>
                         </div>
-                        <button onclick="runMaintenanceNow()" id="manualMaintenanceBtn" class="px-3.5 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-medium text-xs flex items-center justify-center space-x-1.5 transition">
+                        <button onclick="runMaintenanceNow()" id="manualMaintenanceBtn" class="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-medium text-xs flex items-center justify-center space-x-1.5 transition shadow-lg shadow-teal-950">
                             <i data-lucide="play" class="w-3.5 h-3.5" id="maintenanceIcon"></i>
                             <span id="maintenanceText">Run Lifecycle Maintenance Now</span>
                         </button>
@@ -496,32 +719,27 @@
 
                     <!-- Pipeline Steps Graphic -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
-                        <!-- Step 1 -->
-                        <div class="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                        <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800">
                             <span class="text-[10px] uppercase font-bold text-teal-400 block mb-1">Stage 1: Active Ingest</span>
                             <span class="font-semibold text-slate-200 block text-sm">0 – 24 Hours</span>
-                            <span class="text-[11px] text-slate-400 mt-1 block">Real-time memory buffer & live log streaming</span>
+                            <span class="text-[11px] text-slate-400 mt-1 block">Real-time memory buffer & live streaming</span>
                         </div>
-                        <!-- Step 2 -->
-                        <div class="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                        <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800">
                             <span class="text-[10px] uppercase font-bold text-cyan-400 block mb-1">Stage 2: Daily Archive</span>
                             <span class="font-semibold text-slate-200 block text-sm">&gt; 1 Day</span>
                             <span class="text-[11px] text-slate-400 mt-1 block">Time-sliced Gzip compression (<code class="text-cyan-300">.log.gz</code>)</span>
                         </div>
-                        <!-- Step 3 -->
-                        <div class="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                        <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800">
                             <span class="text-[10px] uppercase font-bold text-indigo-400 block mb-1">Stage 3: Consolidation</span>
                             <span class="font-semibold text-slate-200 block text-sm">30 Days</span>
                             <span class="text-[11px] text-slate-400 mt-1 block">Bundled into monthly archive sets (<code class="text-indigo-300">.tar.gz</code>)</span>
                         </div>
-                        <!-- Step 4 -->
-                        <div class="p-3 rounded-xl bg-slate-950/70 border border-rose-900/40 bg-rose-950/10">
+                        <div class="p-3.5 rounded-xl bg-slate-950/70 border border-rose-900/40 bg-rose-950/10">
                             <span class="text-[10px] uppercase font-bold text-rose-400 block mb-1">Stage 4: Rotation Purge</span>
                             <span class="font-semibold text-slate-200 block text-sm">&gt; 91 Days</span>
                             <span class="text-[11px] text-slate-400 mt-1 block">Raw archives purged from disk to prevent bloat</span>
                         </div>
-                        <!-- Step 5 -->
-                        <div class="p-3 rounded-xl bg-slate-950/70 border border-emerald-900/40 bg-emerald-950/10">
+                        <div class="p-3.5 rounded-xl bg-slate-950/70 border border-emerald-900/40 bg-emerald-950/10">
                             <span class="text-[10px] uppercase font-bold text-emerald-400 block mb-1">Stage 5: Metrics Retention</span>
                             <span class="font-semibold text-slate-200 block text-sm">Up to 365 Days</span>
                             <span class="text-[11px] text-slate-400 mt-1 block">Daily aggregated KPIs kept for 1 year in SQLite</span>
@@ -530,19 +748,19 @@
 
                     <!-- Retention Stats Bar -->
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
-                        <div class="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/80">
+                        <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-850">
                             <span class="text-slate-400 block text-[11px]">Total Archive Disk Usage:</span>
                             <span class="font-mono font-bold text-teal-300 text-sm" id="archiveDiskUsage">0 B</span>
                         </div>
-                        <div class="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/80">
+                        <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-850">
                             <span class="text-slate-400 block text-[11px]">Daily Active Archives:</span>
                             <span class="font-mono font-bold text-slate-200 text-sm" id="dailyArchiveCount">0</span>
                         </div>
-                        <div class="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/80">
+                        <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-850">
                             <span class="text-slate-400 block text-[11px]">Consolidated Monthly Sets:</span>
                             <span class="font-mono font-bold text-indigo-300 text-sm" id="monthlyArchiveCount">0</span>
                         </div>
-                        <div class="bg-slate-950/50 p-2.5 rounded-lg border border-slate-800/80">
+                        <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-850">
                             <span class="text-slate-400 block text-[11px]">Historical Analytics Span:</span>
                             <span class="font-mono font-bold text-emerald-400 text-sm" id="metricsDaysSpan">0 / 365 Days</span>
                         </div>
@@ -556,26 +774,24 @@
                             <i data-lucide="bar-chart-3" class="w-5 h-5 text-teal-400"></i>
                             <h3 class="font-semibold text-sm text-slate-200">Historical Performance Trends</h3>
                         </div>
-                        <div class="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-700 text-xs font-medium">
-                            <button onclick="setHistoryRange(7)" id="rangeBtn-7" class="px-3 py-1 rounded-md text-slate-400 hover:text-white">7 Days</button>
-                            <button onclick="setHistoryRange(30)" id="rangeBtn-30" class="px-3 py-1 rounded-md bg-teal-600 text-white">30 Days</button>
-                            <button onclick="setHistoryRange(90)" id="rangeBtn-90" class="px-3 py-1 rounded-md text-slate-400 hover:text-white">90 Days</button>
-                            <button onclick="setHistoryRange(365)" id="rangeBtn-365" class="px-3 py-1 rounded-md text-slate-400 hover:text-white">1 Year (365d)</button>
+                        <div class="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800 text-xs font-medium">
+                            <button onclick="setHistoryRange(7)" id="rangeBtn-7" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white">7 Days</button>
+                            <button onclick="setHistoryRange(30)" id="rangeBtn-30" class="px-3 py-1 rounded-lg bg-teal-600 text-white">30 Days</button>
+                            <button onclick="setHistoryRange(90)" id="rangeBtn-90" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white">90 Days</button>
+                            <button onclick="setHistoryRange(365)" id="rangeBtn-365" class="px-3 py-1 rounded-lg text-slate-400 hover:text-white">1 Year (365d)</button>
                         </div>
                     </div>
 
                     <!-- Trend Charts -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- Chart 1: Requests & Hit Ratio -->
-                        <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur">
+                        <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 shadow-sm">
                             <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">Daily Requests & Hit Ratio (%)</h4>
                             <div class="h-64">
                                 <canvas id="historyReqChart"></canvas>
                             </div>
                         </div>
 
-                        <!-- Chart 2: Bandwidth & Saved Bandwidth -->
-                        <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur">
+                        <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 shadow-sm">
                             <h4 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-3">Total Bandwidth vs Saved Bandwidth</h4>
                             <div class="h-64">
                                 <canvas id="historyBwChart"></canvas>
@@ -585,15 +801,15 @@
                 </div>
 
                 <!-- Archive Index Catalog Table -->
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <h4 class="text-sm font-semibold text-slate-200">Archive Index Catalog (Graylog-like Index Set Registry)</h4>
+                <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                        <h4 class="text-sm font-semibold text-slate-200">Archive Index Catalog (Graylog-like Index Registry)</h4>
                         <span class="text-xs text-slate-400">Recent 30 Indices</span>
                     </div>
 
-                    <div class="overflow-x-auto border border-slate-700/60 rounded-xl bg-slate-900/60 max-h-80 overflow-y-auto">
+                    <div class="overflow-x-auto border border-slate-800/80 rounded-xl bg-slate-950/50 max-h-80 overflow-y-auto">
                         <table class="w-full text-left text-xs whitespace-nowrap">
-                            <thead class="bg-slate-950/70 text-slate-400 uppercase font-mono tracking-wider sticky top-0 z-10 border-b border-slate-800">
+                            <thead class="bg-slate-900/80 text-slate-400 uppercase font-mono tracking-wider sticky top-0 z-10 border-b border-slate-800">
                                 <tr>
                                     <th class="px-4 py-3">Index Identifier</th>
                                     <th class="px-4 py-3">Period Type</th>
@@ -604,60 +820,149 @@
                                     <th class="px-4 py-3">Created Date</th>
                                 </tr>
                             </thead>
-                            <tbody id="indicesTableBody" class="divide-y divide-slate-800 font-mono">
-                                <!-- Populated dynamically -->
+                            <tbody id="indicesTableBody" class="divide-y divide-slate-800/80 font-mono">
+                                <tr><td colspan="7" class="text-center py-6 text-slate-500">Loading catalog...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB 6: Cache Manager Explorer -->
-            <div id="tabContent-cachemgr" class="p-4 sm:p-6 space-y-4 hidden">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex items-center space-x-3">
-                        <label class="text-xs font-semibold text-slate-300">Cache Manager Action:</label>
-                        <select id="cacheMgrSelect" class="bg-slate-900 border border-slate-700 text-teal-400 text-xs font-mono rounded-lg px-3 py-1.5 focus:outline-none focus:border-teal-500">
-                            <option value="info">mgr:info (General Cache Information)</option>
-                            <option value="5min">mgr:5min (5-Minute Stats)</option>
-                            <option value="utilization">mgr:utilization (Cache Utilization)</option>
-                            <option value="client_list">mgr:client_list (Connected Clients)</option>
-                            <option value="ipcache">mgr:ipcache (IP Cache Table)</option>
-                            <option value="counters">mgr:counters (Traffic Counters)</option>
-                        </select>
-                        <button onclick="executeCacheMgr()" class="px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-medium text-xs flex items-center space-x-1.5 transition">
-                            <i data-lucide="play" class="w-3.5 h-3.5"></i>
-                            <span>Query Squid</span>
+            <!-- ========================================== -->
+            <!-- PAGE 6: CACHE MANAGER EXPLORER             -->
+            <!-- ========================================== -->
+            <div id="view-cachemgr" class="page-view space-y-4 hidden">
+                <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                        <div class="flex items-center space-x-3">
+                            <label class="text-xs font-semibold text-slate-300">Cache Manager Action:</label>
+                            <select id="cacheMgrSelect" class="bg-slate-950 border border-slate-700/80 text-teal-400 text-xs font-mono rounded-xl px-3 py-2 focus:outline-none focus:border-teal-500">
+                                <option value="info">mgr:info (General Cache Information)</option>
+                                <option value="5min">mgr:5min (5-Minute Stats)</option>
+                                <option value="utilization">mgr:utilization (Cache Utilization)</option>
+                                <option value="client_list">mgr:client_list (Connected Clients)</option>
+                                <option value="ipcache">mgr:ipcache (IP Cache Table)</option>
+                                <option value="counters">mgr:counters (Traffic Counters)</option>
+                            </select>
+                            <button onclick="executeCacheMgr()" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-medium text-xs flex items-center space-x-1.5 transition shadow-lg shadow-teal-950">
+                                <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                                <span>Query Squid</span>
+                            </button>
+                        </div>
+
+                        <button onclick="copyCacheMgrOutput()" class="px-3.5 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs flex items-center space-x-1.5 transition">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            <span id="copyBtnText">Copy Output</span>
                         </button>
                     </div>
 
-                    <button onclick="copyCacheMgrOutput()" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs flex items-center space-x-1">
-                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-                        <span id="copyBtnText">Copy Output</span>
-                    </button>
-                </div>
-
-                <div class="relative bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 max-h-96 overflow-y-auto" id="cacheMgrConsole">
-                    <pre id="cacheMgrOutput">Loading Cache Manager output...</pre>
+                    <div class="relative bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 max-h-[550px] overflow-y-auto" id="cacheMgrConsole">
+                        <pre id="cacheMgrOutput">Loading Cache Manager output...</pre>
+                    </div>
                 </div>
             </div>
-        </div>
 
-    </main>
+            <!-- ========================================== -->
+            <!-- PAGE 7: SYSTEM & SETTINGS                  -->
+            <!-- ========================================== -->
+            <div id="view-settings" class="page-view space-y-6 hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Squid Service Information -->
+                    <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 space-y-4">
+                        <div class="flex items-center space-x-2 border-b border-slate-800/80 pb-3">
+                            <i data-lucide="server" class="w-5 h-5 text-teal-400"></i>
+                            <h3 class="font-bold text-sm text-white">Squid Proxy Connection</h3>
+                        </div>
+                        <div class="space-y-3 text-xs">
+                            <div class="flex justify-between py-2 border-b border-slate-800">
+                                <span class="text-slate-400">Squid Host / IP:</span>
+                                <span class="font-mono text-slate-200" id="settingsSquidHost">127.0.0.1</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-slate-800">
+                                <span class="text-slate-400">Squid Port:</span>
+                                <span class="font-mono text-slate-200" id="settingsSquidPort">3128</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-slate-800">
+                                <span class="text-slate-400">Squid Status:</span>
+                                <span class="font-semibold text-emerald-400" id="settingsSquidStatus">Online</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-slate-800">
+                                <span class="text-slate-400">Squid Version:</span>
+                                <span class="font-mono text-slate-200" id="settingsSquidVersion">Squid Cache</span>
+                            </div>
+                            <div class="flex justify-between py-2">
+                                <span class="text-slate-400">Reconfigure Command:</span>
+                                <code class="text-teal-300 font-mono" id="settingsReconfigCmd">squid -k reconfigure</code>
+                            </div>
+                        </div>
+                    </div>
 
-    <!-- Footer -->
-    <footer class="border-t border-slate-800/80 bg-slate-950/60 py-4 text-center text-xs text-slate-500">
-        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span>Squid Proxy Web Dashboard • Real-time Monitoring & Performance Analytics for Squid</span>
-            <span>Powered by FastAPI & Chart.js</span>
-        </div>
-    </footer>
+                    <!-- Paths and Storage Configuration -->
+                    <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 space-y-4">
+                        <div class="flex items-center space-x-2 border-b border-slate-800/80 pb-3">
+                            <i data-lucide="folder" class="w-5 h-5 text-sky-400"></i>
+                            <h3 class="font-bold text-sm text-white">Paths & ACL Configuration</h3>
+                        </div>
+                        <div class="space-y-3 text-xs">
+                            <div class="flex justify-between py-2 border-b border-slate-800">
+                                <span class="text-slate-400">Squid Access Log:</span>
+                                <span class="font-mono text-slate-200 truncate max-w-xs" id="settingsAccessLog">/var/log/squid/access.log</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-slate-800">
+                                <span class="text-slate-400">Blocked Domains ACL File:</span>
+                                <span class="font-mono text-slate-200 truncate max-w-xs" id="settingsBlockedFile">/etc/squid/blocked_domains.acl</span>
+                            </div>
+                            <div class="flex justify-between py-2 border-b border-slate-800">
+                                <span class="text-slate-400">Data & History Directory:</span>
+                                <span class="font-mono text-slate-200 truncate max-w-xs" id="settingsDataDir">./data</span>
+                            </div>
+                            <div class="flex justify-between py-2">
+                                <span class="text-slate-400">Dashboard Listen Address:</span>
+                                <span class="font-mono text-slate-200" id="settingsListenAddr">0.0.0.0:8080</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-    <!-- App Logic Script -->
+                <!-- Retention Policies Card -->
+                <div class="bg-[#111c33] border border-slate-800/80 rounded-2xl p-5 space-y-4">
+                    <div class="flex items-center space-x-2 border-b border-slate-800/80 pb-3">
+                        <i data-lucide="clock" class="w-5 h-5 text-purple-400"></i>
+                        <h3 class="font-bold text-sm text-white">Retention & Archival Configuration</h3>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                            <span class="text-slate-400 block mb-1">Metrics Retention Horizon:</span>
+                            <span class="text-lg font-bold text-emerald-400 font-mono">365 Days</span>
+                            <span class="text-[11px] text-slate-500 block mt-1">Stored in SQLite</span>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                            <span class="text-slate-400 block mb-1">Daily Log Slicing:</span>
+                            <span class="text-lg font-bold text-cyan-400 font-mono">&gt; 1 Day</span>
+                            <span class="text-[11px] text-slate-500 block mt-1">Gzip compression (.log.gz)</span>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                            <span class="text-slate-400 block mb-1">Monthly Consolidation:</span>
+                            <span class="text-lg font-bold text-indigo-400 font-mono">30 Days</span>
+                            <span class="text-[11px] text-slate-500 block mt-1">Tarball archive (.tar.gz)</span>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                            <span class="text-slate-400 block mb-1">Raw Archive Purge:</span>
+                            <span class="text-lg font-bold text-rose-400 font-mono">&gt; 91 Days</span>
+                            <span class="text-[11px] text-slate-500 block mt-1">Prevent disk exhaustion</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Application Script -->
     <script>
         // State variables
         let isPaused = false;
-        let activeTab = 'logs';
+        let currentPage = 'dashboard';
         let logFilterType = 'ALL';
         let cachedStats = null;
         let allLogs = [];
@@ -670,6 +975,17 @@
         let historyReqChart = null;
         let historyBwChart = null;
 
+        // Page titles and breadcrumbs map
+        const pageMeta = {
+            dashboard: { title: "System Overview", breadcrumb: "Overview" },
+            logs: { title: "Live Access Logs", breadcrumb: "Live Logs" },
+            analytics: { title: "Traffic Analytics", breadcrumb: "Analytics" },
+            blocker: { title: "Domain Blocker & Blacklist", breadcrumb: "Domain Blocker" },
+            history: { title: "History & Retention (365 Days)", breadcrumb: "History & Retention" },
+            cachemgr: { title: "Squid Cache Manager Explorer", breadcrumb: "Cache Manager" },
+            settings: { title: "System & Settings", breadcrumb: "Settings" }
+        };
+
         // Initialize Lucide icons
         lucide.createIcons();
 
@@ -678,6 +994,72 @@
             const now = new Date();
             document.getElementById('liveClock').textContent = now.toLocaleTimeString();
         }, 1000);
+
+        // Sidebar Drawer Toggle for Mobile
+        function toggleSidebar(open) {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (open) {
+                sidebar.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                backdrop.classList.add('hidden');
+            }
+        }
+
+        // Navigation Controller
+        function navigatePage(pageId) {
+            if (!pageMeta[pageId]) pageId = 'dashboard';
+            currentPage = pageId;
+
+            // Update URL hash
+            window.location.hash = pageId;
+
+            // Update Header Title & Breadcrumb
+            document.getElementById('pageTitleHeading').textContent = pageMeta[pageId].title;
+            document.getElementById('breadcrumbCurrent').textContent = pageMeta[pageId].breadcrumb;
+
+            // Update Sidebar Active Links
+            document.querySelectorAll('.nav-link').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            const activeBtn = document.getElementById(`nav-${pageId}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // Toggle Page Views
+            document.querySelectorAll('.page-view').forEach(view => {
+                view.classList.add('hidden');
+            });
+            const activeView = document.getElementById(`view-${pageId}`);
+            if (activeView) activeView.classList.remove('hidden');
+
+            // Close mobile sidebar if open
+            toggleSidebar(false);
+
+            // Trigger view-specific loads or chart resizes
+            if (pageId === 'dashboard') {
+                if (trafficChart) trafficChart.resize();
+                if (hitDonutChart) hitDonutChart.resize();
+            } else if (pageId === 'history') {
+                fetchHistoricalMetrics(historyDaysRange);
+                fetchRetentionStatus();
+                setTimeout(() => {
+                    if (historyReqChart) historyReqChart.resize();
+                    if (historyBwChart) historyBwChart.resize();
+                }, 100);
+            } else if (pageId === 'blocker') {
+                fetchBlockedDomains();
+            } else if (pageId === 'cachemgr') {
+                if (document.getElementById('cacheMgrOutput').textContent.includes('Loading')) {
+                    executeCacheMgr();
+                }
+            } else if (pageId === 'settings') {
+                fetchSystemSettings();
+            }
+
+            lucide.createIcons();
+        }
 
         // Helper format bytes
         function formatBytes(bytes) {
@@ -748,11 +1130,11 @@
                     },
                     scales: {
                         x: {
-                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                            grid: { color: 'rgba(51, 65, 85, 0.2)' },
                             ticks: { color: '#64748b', maxTicksLimit: 8 }
                         },
                         y: {
-                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                            grid: { color: 'rgba(51, 65, 85, 0.2)' },
                             ticks: { color: '#64748b' },
                             beginAtZero: true
                         }
@@ -765,12 +1147,12 @@
             hitDonutChart = new Chart(ctxDonut, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Hits', 'Misses', 'Denied'],
+                    labels: ['Cache Hits', 'Cache Misses', 'Denied / Blocked'],
                     datasets: [{
                         data: [0, 0, 0],
-                        backgroundColor: ['#10b981', '#f59e0b', '#f43f5e'],
-                        borderColor: '#1e293b',
-                        borderWidth: 3
+                        backgroundColor: ['#10b981', '#38bdf8', '#f43f5e'],
+                        borderWidth: 0,
+                        hoverOffset: 4
                     }]
                 },
                 options: {
@@ -786,30 +1168,26 @@
             // History Requests & Hit Ratio Chart
             const ctxHistReq = document.getElementById('historyReqChart').getContext('2d');
             historyReqChart = new Chart(ctxHistReq, {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: [],
                     datasets: [
                         {
-                            type: 'line',
                             label: 'Hit Ratio (%)',
                             data: [],
                             borderColor: '#10b981',
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
                             tension: 0.3,
-                            yAxisID: 'y1',
-                            pointRadius: 2
+                            yAxisID: 'y1'
                         },
                         {
-                            type: 'bar',
                             label: 'Total Requests',
                             data: [],
-                            backgroundColor: 'rgba(20, 184, 166, 0.6)',
                             borderColor: '#14b8a6',
-                            borderWidth: 1,
-                            yAxisID: 'y',
-                            borderRadius: 4
+                            borderDash: [3, 3],
+                            tension: 0.3,
+                            yAxisID: 'y'
                         }
                     ]
                 },
@@ -889,35 +1267,7 @@
             });
         }
 
-        // Switch Tabs
-        function switchTab(tabName) {
-            activeTab = tabName;
-            ['logs', 'clients', 'domains', 'blocker', 'history', 'cachemgr'].forEach(tab => {
-                const btn = document.getElementById(`tabBtn-${tab}`);
-                const content = document.getElementById(`tabContent-${tab}`);
-                if (!btn || !content) return;
-                if (tab === tabName) {
-                    btn.classList.add('border-teal-500', 'text-teal-400');
-                    btn.classList.remove('border-transparent', 'text-slate-400');
-                    content.classList.remove('hidden');
-                } else {
-                    btn.classList.remove('border-teal-500', 'text-teal-400');
-                    btn.classList.add('border-transparent', 'text-slate-400');
-                    content.classList.add('hidden');
-                }
-            });
-
-            if (tabName === 'cachemgr' && document.getElementById('cacheMgrOutput').textContent.includes('Loading')) {
-                executeCacheMgr();
-            } else if (tabName === 'blocker') {
-                fetchBlockedDomains();
-            } else if (tabName === 'history') {
-                fetchHistoricalMetrics(historyDaysRange);
-                fetchRetentionStatus();
-            }
-        }
-
-        // Execute Cache Manager Query
+        // Cache Manager Query Execution
         async function executeCacheMgr() {
             const action = document.getElementById('cacheMgrSelect').value;
             const outputEl = document.getElementById('cacheMgrOutput');
@@ -945,10 +1295,10 @@
             logFilterType = type;
             ['ALL', 'HIT', 'MISS', 'DENIED'].forEach(t => {
                 const btn = document.getElementById(`filterBtn-${t}`);
-                if (t === type) {
-                    btn.className = "px-2.5 py-1 rounded-md bg-teal-600 text-white font-medium";
-                } else {
-                    btn.className = "px-2.5 py-1 rounded-md text-slate-400 hover:text-white";
+                if (btn) {
+                    btn.className = (t === type)
+                        ? "px-3 py-1 rounded-lg bg-teal-600 text-white font-medium"
+                        : "px-3 py-1 rounded-lg text-slate-400 hover:text-white";
                 }
             });
             applyLogFilters();
@@ -959,10 +1309,10 @@
             const text = document.getElementById('pauseLogText');
             const icon = document.getElementById('pauseLogIcon');
             if (isPaused) {
-                text.textContent = "Resume";
+                text.textContent = "Resume Stream";
                 icon.setAttribute('data-lucide', 'play');
             } else {
-                text.textContent = "Pause";
+                text.textContent = "Pause Stream";
                 icon.setAttribute('data-lucide', 'pause');
             }
             lucide.createIcons();
@@ -995,7 +1345,7 @@
         function renderLogsTable(logs) {
             const tbody = document.getElementById('logsTableBody');
             if (!logs || logs.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-500">No log entries recorded yet</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-500">No log entries recorded yet</td></tr>`;
                 return;
             }
 
@@ -1048,59 +1398,104 @@
         // Render Top Clients
         function renderTopClients(clients) {
             const tbody = document.getElementById('clientsTableBody');
+            const overviewTbody = document.getElementById('overviewClientsTable');
             if (!clients || clients.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500">No active clients recorded</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500">No active clients recorded</td></tr>`;
+                if (overviewTbody) overviewTbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-slate-500">No active clients</td></tr>`;
                 return;
             }
-            tbody.innerHTML = clients.map((c, i) => `
-                <tr class="hover:bg-slate-800/40 transition">
-                    <td class="px-4 py-3 flex items-center space-x-2">
-                        <span class="w-5 h-5 rounded-full bg-slate-800 text-[10px] flex items-center justify-center font-bold text-slate-400">${i+1}</span>
-                        <span class="text-slate-100 font-semibold">${c.ip}</span>
-                    </td>
-                    <td class="px-4 py-3 text-slate-300">${c.requests.toLocaleString()}</td>
-                    <td class="px-4 py-3">
-                        <div class="flex items-center space-x-2">
-                            <span class="text-emerald-400 font-semibold w-12">${c.hit_ratio}%</span>
-                            <div class="w-20 bg-slate-700/60 h-1.5 rounded-full overflow-hidden">
-                                <div class="bg-emerald-400 h-1.5 rounded-full" style="width: ${c.hit_ratio}%"></div>
+
+            // Full Analytics Table
+            if (tbody) {
+                tbody.innerHTML = clients.map((c, i) => `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="px-4 py-3 flex items-center space-x-2">
+                            <span class="w-5 h-5 rounded-full bg-slate-800 text-[10px] flex items-center justify-center font-bold text-slate-400">${i+1}</span>
+                            <span class="text-slate-100 font-semibold">${c.ip}</span>
+                        </td>
+                        <td class="px-4 py-3 text-slate-300">${c.requests.toLocaleString()}</td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-emerald-400 font-semibold w-12">${c.hit_ratio}%</span>
+                                <div class="w-20 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                    <div class="bg-emerald-400 h-1.5 rounded-full" style="width: ${c.hit_ratio}%"></div>
+                                </div>
                             </div>
-                        </div>
-                    </td>
-                    <td class="px-4 py-3 text-slate-300">${formatBytes(c.bytes)}</td>
-                    <td class="px-4 py-3 text-slate-400">${c.last_seen || '-'}</td>
-                </tr>
-            `).join('');
+                        </td>
+                        <td class="px-4 py-3 text-slate-300">${formatBytes(c.bytes)}</td>
+                        <td class="px-4 py-3 text-slate-400">${c.last_seen || '-'}</td>
+                    </tr>
+                `).join('');
+            }
+
+            // Overview 5 Items Snapshot
+            if (overviewTbody) {
+                overviewTbody.innerHTML = clients.slice(0, 5).map(c => `
+                    <tr class="hover:bg-slate-850/60 transition">
+                        <td class="px-3 py-2 text-slate-200 font-medium">${c.ip}</td>
+                        <td class="px-3 py-2 text-slate-300">${c.requests.toLocaleString()}</td>
+                        <td class="px-3 py-2 text-emerald-400 font-semibold">${c.hit_ratio}%</td>
+                        <td class="px-3 py-2 text-slate-400">${formatBytes(c.bytes)}</td>
+                    </tr>
+                `).join('');
+            }
         }
 
         // Render Top Domains
         function renderTopDomains(domains) {
             const tbody = document.getElementById('domainsTableBody');
+            const overviewTbody = document.getElementById('overviewDomainsTable');
             if (!domains || domains.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">No domains recorded</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">No domains recorded</td></tr>`;
+                if (overviewTbody) overviewTbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-slate-500">No domains recorded</td></tr>`;
                 return;
             }
-            tbody.innerHTML = domains.map(d => {
-                const isBlocked = blockedDomains.includes(d.domain) || blockedDomains.includes(`.${d.domain}`);
-                return `
-                    <tr class="hover:bg-slate-800/40 transition">
-                        <td class="px-4 py-3 font-semibold text-teal-300">${d.domain}</td>
-                        <td class="px-4 py-3 text-slate-200">${d.requests.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-emerald-400 font-medium">${d.hits.toLocaleString()} (${d.hit_ratio}%)</td>
-                        <td class="px-4 py-3 ${d.denied > 0 ? 'text-rose-400 font-bold' : 'text-slate-500'}">${d.denied.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-slate-300">${formatBytes(d.bytes)}</td>
-                        <td class="px-4 py-3 text-right">
-                            ${isBlocked 
-                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-rose-950/80 text-rose-400 border border-rose-800 font-sans">Blocked</span>`
-                                : `<button onclick="quickBlockDomain('${d.domain}')" class="px-2.5 py-1 rounded text-xs bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 border border-slate-700 hover:border-rose-700 transition font-sans flex items-center space-x-1 ml-auto">
-                                    <i data-lucide="shield-ban" class="w-3 h-3 text-rose-400"></i>
-                                    <span>Block</span>
-                                   </button>`
-                            }
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+
+            // Full Analytics Table
+            if (tbody) {
+                tbody.innerHTML = domains.map(d => {
+                    const isBlocked = blockedDomains.includes(d.domain) || blockedDomains.includes(`.${d.domain}`);
+                    return `
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="px-4 py-3 font-semibold text-teal-300">${d.domain}</td>
+                            <td class="px-4 py-3 text-slate-200">${d.requests.toLocaleString()}</td>
+                            <td class="px-4 py-3 text-emerald-400 font-medium">${d.hits.toLocaleString()} (${d.hit_ratio}%)</td>
+                            <td class="px-4 py-3 ${d.denied > 0 ? 'text-rose-400 font-bold' : 'text-slate-500'}">${d.denied.toLocaleString()}</td>
+                            <td class="px-4 py-3 text-slate-300">${formatBytes(d.bytes)}</td>
+                            <td class="px-4 py-3 text-right">
+                                ${isBlocked 
+                                    ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-rose-950/80 text-rose-400 border border-rose-800 font-sans">Blocked</span>`
+                                    : `<button onclick="quickBlockDomain('${d.domain}')" class="px-2.5 py-1 rounded text-xs bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 border border-slate-700 hover:border-rose-700 transition font-sans flex items-center space-x-1 ml-auto">
+                                        <i data-lucide="shield-ban" class="w-3 h-3 text-rose-400"></i>
+                                        <span>Block</span>
+                                       </button>`
+                                }
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            // Overview 5 Items Snapshot
+            if (overviewTbody) {
+                overviewTbody.innerHTML = domains.slice(0, 5).map(d => {
+                    const isBlocked = blockedDomains.includes(d.domain) || blockedDomains.includes(`.${d.domain}`);
+                    return `
+                        <tr class="hover:bg-slate-850/60 transition">
+                            <td class="px-3 py-2 text-teal-300 font-medium truncate max-w-[130px]">${d.domain}</td>
+                            <td class="px-3 py-2 text-slate-300">${d.requests.toLocaleString()}</td>
+                            <td class="px-3 py-2 text-emerald-400 font-semibold">${d.hit_ratio}%</td>
+                            <td class="px-3 py-2 text-right">
+                                ${isBlocked 
+                                    ? `<span class="text-[10px] text-rose-400 font-sans">Blocked</span>`
+                                    : `<button onclick="quickBlockDomain('${d.domain}')" class="text-[11px] text-slate-400 hover:text-rose-400 font-sans">Block</button>`
+                                }
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
             lucide.createIcons();
         }
 
@@ -1111,7 +1506,7 @@
                 const data = await res.json();
                 blockedDomains = data.domains || [];
                 
-                document.getElementById('blockerCountPill').textContent = blockedDomains.length;
+                document.getElementById('navBlockerCount').textContent = blockedDomains.length;
                 document.getElementById('blockedTotalBadge').textContent = `${blockedDomains.length} domains`;
                 if (data.file_path) {
                     document.getElementById('blocklistFilePath').textContent = data.file_path;
@@ -1266,11 +1661,9 @@
             [7, 30, 90, 365].forEach(d => {
                 const btn = document.getElementById(`rangeBtn-${d}`);
                 if (!btn) return;
-                if (d === days) {
-                    btn.className = "px-3 py-1 rounded-md bg-teal-600 text-white";
-                } else {
-                    btn.className = "px-3 py-1 rounded-md text-slate-400 hover:text-white";
-                }
+                btn.className = (d === days)
+                    ? "px-3 py-1 rounded-lg bg-teal-600 text-white font-medium"
+                    : "px-3 py-1 rounded-lg text-slate-400 hover:text-white";
             });
             fetchHistoricalMetrics(days);
         }
@@ -1281,14 +1674,12 @@
                 const data = await res.json();
                 const history = data.history || [];
 
-                // Labels
                 const labels = history.map(h => h.date);
                 const requests = history.map(h => h.total_requests);
                 const hitRatios = history.map(h => h.hit_ratio);
                 const bandwidthMB = history.map(h => (h.total_bytes / (1024 * 1024)).toFixed(2));
                 const savedMB = history.map(h => (h.saved_bytes / (1024 * 1024)).toFixed(2));
 
-                // Update History Charts
                 if (historyReqChart) {
                     historyReqChart.data.labels = labels;
                     historyReqChart.data.datasets[0].data = hitRatios;
@@ -1384,24 +1775,60 @@
             }
         }
 
+        // --- System Settings Functions ---
+        async function fetchSystemSettings() {
+            try {
+                const res = await fetch('/api/system/info');
+                const data = await res.json();
+                const squid = data.squid || {};
+                const ret = data.retention || {};
+                const dash = data.dashboard || {};
+
+                document.getElementById('settingsSquidHost').textContent = squid.host || '127.0.0.1';
+                document.getElementById('settingsSquidPort').textContent = squid.port || 3128;
+                document.getElementById('settingsSquidStatus').textContent = squid.alive ? 'Online' : 'Offline';
+                document.getElementById('settingsSquidStatus').className = squid.alive ? 'font-semibold text-emerald-400' : 'font-semibold text-rose-400';
+                document.getElementById('settingsSquidVersion').textContent = squid.version || 'Squid Cache';
+                document.getElementById('settingsReconfigCmd').textContent = squid.reconfigure_cmd || 'squid -k reconfigure';
+
+                document.getElementById('settingsAccessLog').textContent = squid.access_log || '-';
+                document.getElementById('settingsBlockedFile').textContent = squid.blocked_domains_file || '-';
+                document.getElementById('settingsDataDir').textContent = ret.data_dir || './data';
+                document.getElementById('settingsListenAddr').textContent = `${dash.host || '0.0.0.0'}:${dash.port || 8080}`;
+            } catch (err) {
+                console.error("Failed to fetch system info:", err);
+            }
+        }
+
+        // Trigger manual refresh
+        async function triggerManualRefresh() {
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('animate-spin');
+            await fetchStats();
+            await fetchBlockedDomains();
+            setTimeout(() => { icon.classList.remove('animate-spin'); }, 600);
+        }
+
         // Update UI with new state
         function updateUI(state) {
             cachedStats = state;
 
-            // Status
+            // Status in sidebar
             const isAlive = state.status.alive;
-            const statusBadge = document.getElementById('serviceStatusBadge');
-            const statusText = document.getElementById('serviceStatusText');
+            const dot = document.getElementById('sidebarStatusDot');
+            const txt = document.getElementById('sidebarStatusText');
             if (isAlive) {
-                statusBadge.className = "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800";
-                statusText.textContent = "ONLINE";
+                dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 pulse-dot";
+                txt.textContent = "ONLINE";
+                txt.className = "text-xs font-bold text-emerald-400 block leading-tight";
             } else {
-                statusBadge.className = "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-950/80 text-rose-400 border border-rose-800";
-                statusText.textContent = "OFFLINE";
+                dot.className = "w-2.5 h-2.5 rounded-full bg-rose-400";
+                txt.textContent = "OFFLINE";
+                txt.className = "text-xs font-bold text-rose-400 block leading-tight";
             }
 
-            document.getElementById('squidVersion').textContent = state.status.version;
-            document.getElementById('squidEndpoint').textContent = `${state.status.target_host}:${state.status.target_port}`;
+            document.getElementById('sidebarVersion').textContent = state.status.version;
+            document.getElementById('sidebarEndpoint').textContent = `${state.status.target_host}:${state.status.target_port}`;
 
             // KPIs
             const kpi = state.kpi;
@@ -1420,7 +1847,7 @@
             document.getElementById('bandwidthSec').textContent = `${kpi.kb_per_sec} KB/s`;
             document.getElementById('kpiTotalRequests').textContent = kpi.total_requests.toLocaleString();
 
-            // Hardware & Resources
+            // Resources
             const met = state.metrics;
             document.getElementById('cpuUsage').textContent = `${met.cpu_usage_pct}%`;
             document.getElementById('activeClientsCount').textContent = kpi.active_clients;
@@ -1438,7 +1865,7 @@
             const badgesContainer = document.getElementById('statusBadgesContainer');
             const counters = state.status_counters || {};
             badgesContainer.innerHTML = Object.entries(counters).slice(0, 4).map(([k, v]) => `
-                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300">
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
                     ${k}: <strong class="text-teal-400">${v}</strong>
                 </span>
             `).join('');
@@ -1478,7 +1905,7 @@
             const ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
-                document.getElementById('wsIndicator').className = "w-2 h-2 rounded-full bg-emerald-400";
+                document.getElementById('wsIndicator').className = "w-2 h-2 rounded-full bg-emerald-400 pulse-dot";
                 document.getElementById('wsStatusText').textContent = "Live Sync";
             };
 
@@ -1513,12 +1940,28 @@
             }
         }
 
+        // Handle URL Hash Changes
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.slice(1);
+            if (hash && pageMeta[hash]) {
+                navigatePage(hash);
+            }
+        });
+
         // Init on page load
         window.addEventListener('DOMContentLoaded', () => {
             initCharts();
             fetchStats();
             fetchBlockedDomains();
             initWebSocket();
+
+            // Check initial hash
+            const initialHash = window.location.hash.slice(1);
+            if (initialHash && pageMeta[initialHash]) {
+                navigatePage(initialHash);
+            } else {
+                navigatePage('dashboard');
+            }
         });
     </script>
 </body>

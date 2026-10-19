@@ -43,6 +43,13 @@ A modern, lightweight, real-time web monitoring and analytics dashboard for **Sq
    - **Log Rotation Purge (> 91 Days):** Automatically deletes raw log archives older than 91 days to safeguard disk space while keeping long-term aggregated metrics intact.
    - **Interactive History UI:** View historical trends across 7, 30, 90, and 365-day horizons and inspect archive indices with manual maintenance triggers.
 
+8. **Multi-Page Admin Dashboard Layout:**
+   - **Sidebar Navigation:** Collapsible left-hand navigation menu with live indicator badges, grouped by category (Monitoring, Security, Data & Storage, Administration).
+   - **Dedicated Full-Page Views:** Dedicated views for Overview (`#dashboard`), Live Logs (`#logs`), Traffic Analytics (`#analytics`), Domain Blocker (`#blocker`), History & Retention (`#history`), Cache Manager (`#cachemgr`), and System & Settings (`#settings`).
+   - **URL Hash Routing:** Seamless browser history, bookmarking, and reload support via URL hash navigation (`#view`).
+   - **Mobile-Responsive Drawer:** Built-in responsive drawer overlay for tablets and mobile devices.
+
+
 
 ---
 

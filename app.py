@@ -151,6 +151,35 @@ async def trigger_maintenance():
     result = await asyncio.to_thread(retention_manager.run_full_lifecycle, logs_copy)
     return result
 
+@app.get("/api/system/info")
+async def get_system_info():
+    return {
+        "dashboard": {
+            "host": config.HOST,
+            "port": config.PORT,
+            "version": "1.2.0"
+        },
+        "squid": {
+            "host": config.SQUID_HOST,
+            "port": config.SQUID_PORT,
+            "access_log": config.SQUID_ACCESS_LOG,
+            "access_log_exists": os.path.exists(config.SQUID_ACCESS_LOG),
+            "blocked_domains_file": config.SQUID_BLOCKED_DOMAINS_FILE,
+            "blocked_domains_exists": os.path.exists(config.SQUID_BLOCKED_DOMAINS_FILE),
+            "reconfigure_cmd": config.SQUID_RECONFIGURE_CMD,
+            "alive": monitor.squid_alive,
+            "version": monitor.squid_version
+        },
+        "retention": {
+            "data_dir": config.DATA_DIR,
+            "metrics_days": config.METRICS_RETENTION_DAYS,
+            "archive_days": config.LOG_ARCHIVE_DAYS,
+            "consolidation_days": config.LOG_CONSOLIDATION_DAYS,
+            "purge_days": config.LOG_PURGE_DAYS
+        }
+    }
+
+
 @app.websocket("/ws/live")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
