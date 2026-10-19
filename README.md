@@ -37,7 +37,24 @@
 
 ## 🚀 วิธีการติดตั้งและเริ่มใช้งาน (Installation Guide)
 
-### วิธีที่ 1: ติดตั้งด้วย Python Virtual Environment (venv) — *แนะนำสำหรับ Linux / Debian / Ubuntu*
+### ⚡ วิธีที่ 1: ติดตั้งอัตโนมัติในคำสั่งเดียว (Automated One-Liner — แนะนำ)
+
+รันคำสั่งด้านล่างนี้บนเซิร์ฟเวอร์ (Ubuntu / Debian / CentOS / AlmaLinux / Rocky):
+
+```bash
+curl -sSL https://raw.githubusercontent.com/teerakanotklan/squid-dashy/main/install.sh | sudo bash
+```
+
+> 💡 **หรือหากดาวน์โหลดโค้ดมาแล้ว:**
+> ```bash
+> cd ~/squid-dashy
+> sudo bash install.sh
+> ```
+*สคริปต์จะติดตั้ง System Dependencies, สร้าง Python `venv`, ติดตั้งแพ็กเกจ (รวม WebSocket), สร้างและเปิดใช้งาน Systemd Service ให้อัตโนมัติทันที*
+
+---
+
+### 🛠️ วิธีที่ 2: ติดตั้งด้วยตนเองทีละขั้นตอน (Manual Installation with venv)
 
 > ⚠️ **สำหรับ Ubuntu 24.04 / Debian 12 (Python 3.12+):**  
 > ระบบจะมีระบบป้องกัน **PEP 668 (`externally-managed-environment`)** เพื่อความปลอดภัยของระบบปฏิบัติการ แนะนำให้ติดตั้งและรันผ่าน Python Virtual Environment เสมอ
@@ -91,9 +108,9 @@ python app.py
 
 ---
 
-### วิธีที่ 2: ติดตั้งให้ทำงานเบื้องหลังอัตโนมัติ (Linux Systemd Service)
+### วิธีที่ 3: ติดตั้งให้ทำงานเบื้องหลังอัตโนมัติแบบกำหนดเอง (Linux Systemd Service)
 
-หากต้องการให้ `squid-dashy` รันอัตโนมัติตลอดเวลาและเปิดขึ้นมาใหม่เองเมื่อรีบูตเครื่อง:
+หากต้องการให้ `squid-dashy` รันอัตโนมัติตลอดเวลาและเปิดขึ้นมาใหม่เองเมื่อรีบูตเครื่อง (กรณีไม่ได้ใช้ `install.sh`):
 
 1. ปรับแต่งไฟล์ Service ให้เรียกใช้ Python ใน `venv` โดยตรง (ตรวจสอบ path โฟลเดอร์โปรเจกต์ เช่น `/root/squid-dashy` หรือ `/opt/squid-dashy`):
    ```bash
@@ -137,7 +154,7 @@ python app.py
 
 ---
 
-### วิธีที่ 3: รันผ่าน Docker / Docker Compose
+### วิธีที่ 4: รันผ่าน Docker / Docker Compose
 
 หากต้องการรันแดชบอร์ดเป็น Container โดยแชร์ Log จาก Squid บนเครื่องโฮสต์:
 
