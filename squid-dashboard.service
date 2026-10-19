@@ -1,13 +1,17 @@
 [Unit]
-Description=Squid Proxy Web Dashboard
+Description=Squid Proxy Web Dashboard (squid-dashy)
 After=network.target squid.service
 Wants=squid.service
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/squid-dashboard
-ExecStart=/usr/bin/python3 app.py
+# กำหนดโฟลเดอร์ของโปรเจกต์ (ปรับตามตำแหน่งจริง เช่น /root/squid-dashy หรือ /opt/squid-dashy)
+WorkingDirectory=/root/squid-dashy
+
+# เรียกใช้ Python ภายใน Virtual Environment (venv) เพื่อแก้ปัญหา PEP 668
+ExecStart=/root/squid-dashy/venv/bin/python app.py
+
 Restart=always
 RestartSec=5
 Environment=DASHBOARD_HOST=0.0.0.0
