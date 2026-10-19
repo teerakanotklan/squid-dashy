@@ -26,7 +26,13 @@ A modern, lightweight, real-time web monitoring and analytics dashboard for **Sq
    - **Top Client IPs**: Identifies top client machines by request count, hit ratio, and transferred bandwidth.
    - **Top Domains**: Ranks most frequently requested domains and shows blocked/denied statistics.
 
-5. **Integrated Squid Cache Manager Explorer:**
+5. **Domain Blocking & Blacklist Management:**
+   - Manage blocked domains directly from the web UI.
+   - Supports exact domain blocking (`example.com`) and wildcard subdomains (`.example.com`).
+   - One-click quick blocking directly from the Top Domains and Live Logs tables.
+   - Automatically reconfigures Squid (`squid -k reconfigure`) with zero connection downtime.
+
+6. **Integrated Squid Cache Manager Explorer:**
    - Run queries directly against the Squid Cache Manager API (`mgr:info`, `mgr:5min`, `mgr:utilization`, `mgr:client_list`, `mgr:ipcache`, `mgr:counters`).
    - Terminal-style raw output viewer with one-click copy to clipboard.
 
@@ -135,6 +141,7 @@ To run `squid-dashy` as a persistent background service managed by systemd:
    Environment=SQUID_HOST=127.0.0.1
    Environment=SQUID_PORT=3128
    Environment=SQUID_ACCESS_LOG=/var/log/squid/access.log
+   Environment=SQUID_BLOCKED_DOMAINS_FILE=/etc/squid/blocked_domains.acl
 
    [Install]
    WantedBy=multi-user.target
@@ -155,7 +162,7 @@ To run `squid-dashy` as a persistent background service managed by systemd:
 
 ### 🐳 Option 4: Run with Docker / Docker Compose
 
-To run the dashboard inside a container and mount host Squid logs:
+To run the dashboard inside a container and mount host Squid logs and blocklist:
 
 ```bash
 docker compose up -d
@@ -200,14 +207,16 @@ Configuration parameters can be defined via environment variables or a `.env` fi
 | `SQUID_HOST` | `127.0.0.1` | IP address of the Squid Proxy instance |
 | `SQUID_PORT` | `3128` | Port of the Squid Proxy instance |
 | `SQUID_ACCESS_LOG` | `/var/log/squid/access.log` | Path to Squid access log file |
+| `SQUID_BLOCKED_DOMAINS_FILE` | `/etc/squid/blocked_domains.acl` | Path to the blocked domains ACL list |
+| `SQUID_RECONFIGURE_CMD` | `squid -k reconfigure` | Command to reload Squid ACL rules |
 | `SQUID_MGR_USER` | `""` | Optional HTTP basic auth user for Cache Manager |
 | `SQUID_MGR_PASS` | `""` | Optional HTTP basic auth password for Cache Manager |
 
 ---
 
-## 🔧 Configuring `squid.conf` for Dashboard Access
+## 🔧 Configuring `squid.conf` for Dashboard & Domain Blocking
 
-To allow the dashboard to query the Squid Cache Manager (`mgr:info`), add or verify the following ACL settings in `/etc/squid/squid.conf`:
+To enable Cache Manager metrics and the Domain Blocker, configure `/etc/squid/squid.conf` as follows:
 
 ```squid
 # 1. Define ACLs allowing localhost or dashboard host
@@ -221,9 +230,21 @@ http_access deny manager
 # 3. Standard access log configuration
 logformat squid %ts.%03tu %6tr %>a %Ss/%03>Hs %<st %rm %ru %[un %Sh/%<a %mt
 access_log /var/log/squid/access.log squid
+
+# 4. Domain Blocking ACL (Managed by Web Dashboard)
+acl blocked_domains dstdomain "/etc/squid/blocked_domains.acl"
+http_access deny blocked_domains
+
+# 5. Normal client access rules
+acl localnet src 192.168.0.0/16
+http_access allow localnet
+http_access allow localhost
+http_access deny all
 ```
 
-Apply changes by reconfiguring Squid:
+Ensure the ACL file exists and is writable:
 ```bash
+sudo touch /etc/squid/blocked_domains.acl
+sudo chmod 664 /etc/squid/blocked_domains.acl
 sudo squid -k reconfigure
 ```

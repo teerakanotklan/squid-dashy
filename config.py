@@ -14,4 +14,12 @@ class Config:
     SQUID_ACCESS_LOG = os.getenv("SQUID_ACCESS_LOG", "/var/log/squid/access.log")
     SQUID_CACHE_LOG = os.getenv("SQUID_CACHE_LOG", "/var/log/squid/cache.log")
 
+    # Domain Blocking Configuration
+    _default_blocklist = "/etc/squid/blocked_domains.acl"
+    if not os.path.exists("/etc/squid") and not os.getenv("SQUID_BLOCKED_DOMAINS_FILE"):
+        _default_blocklist = os.path.join(os.path.dirname(__file__), "blocked_domains.acl")
+        
+    SQUID_BLOCKED_DOMAINS_FILE = os.getenv("SQUID_BLOCKED_DOMAINS_FILE", _default_blocklist)
+    SQUID_RECONFIGURE_CMD = os.getenv("SQUID_RECONFIGURE_CMD", "squid -k reconfigure")
+
 config = Config()

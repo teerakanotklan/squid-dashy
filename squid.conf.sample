@@ -27,7 +27,12 @@ maximum_object_size_in_memory 512 KB
 maximum_object_size 100 MB
 cache_dir ufs /var/spool/squid 10000 16 256
 
-# 5. Client Access Rules (Sample)
+# 5. Domain Blocking ACL (Managed by Squid Dashboard)
+# Reads blocked domains from the ACL file (one domain per line, e.g. .facebook.com)
+acl blocked_domains dstdomain "/etc/squid/blocked_domains.acl"
+http_access deny blocked_domains
+
+# 6. Client Access Rules (Sample)
 acl localnet src 10.0.0.0/8
 acl localnet src 172.16.0.0/12
 acl localnet src 192.168.0.0/16

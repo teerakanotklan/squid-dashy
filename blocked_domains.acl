@@ -1,0 +1,2 @@
+# Squid Proxy Blocked Domains ACL List
+# One domain per line. Leading dot (.example.com) blocks all subdomains.

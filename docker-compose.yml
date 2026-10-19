@@ -14,9 +14,12 @@ services:
       - SQUID_HOST=squid-proxy          # Or host IP such as 127.0.0.1 or host.docker.internal
       - SQUID_PORT=3128
       - SQUID_ACCESS_LOG=/var/log/squid/access.log
+      - SQUID_BLOCKED_DOMAINS_FILE=/etc/squid/blocked_domains.acl
     volumes:
       # Mount access.log from host for real-time log tailing
       - /var/log/squid:/var/log/squid:ro
+      # Mount blocked domains ACL file
+      - /etc/squid/blocked_domains.acl:/etc/squid/blocked_domains.acl
     depends_on:
       - squid-proxy
 
@@ -30,3 +33,4 @@ services:
     volumes:
       - ./squid.conf.sample:/etc/squid/squid.conf:ro
       - /var/log/squid:/var/log/squid
+      - /etc/squid/blocked_domains.acl:/etc/squid/blocked_domains.acl:ro

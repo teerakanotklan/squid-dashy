@@ -192,7 +192,7 @@
                             <span class="font-mono text-slate-300" id="diskCacheText">0 / 10 GB</span>
                         </div>
                         <div class="w-full bg-slate-700/60 h-1.5 rounded-full overflow-hidden">
-                            <div id="diskCacheBar" class="bg-indigo-400 h-1.5 rounded-full" style="width: 0%"></div>
+                            <div id="diskCacheBar" class="bg-indigo-400 h-1.5 rounded-full" style="width: 20%"></div>
                         </div>
                     </div>
                     <div>
@@ -201,7 +201,7 @@
                             <span class="font-mono text-slate-300" id="ramCacheText">0 / 512 MB</span>
                         </div>
                         <div class="w-full bg-slate-700/60 h-1.5 rounded-full overflow-hidden">
-                            <div id="ramCacheBar" class="bg-purple-400 h-1.5 rounded-full" style="width: 0%"></div>
+                            <div id="ramCacheBar" class="bg-purple-400 h-1.5 rounded-full" style="width: 30%"></div>
                         </div>
                     </div>
                     <div class="flex justify-between text-slate-400 pt-1 border-t border-slate-700/40">
@@ -274,6 +274,11 @@
                         <i data-lucide="globe" class="w-4 h-4"></i>
                         <span>Top Domains & Blocks</span>
                     </button>
+                    <button onclick="switchTab('blocker')" id="tabBtn-blocker" class="tab-btn px-3 py-3.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition">
+                        <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                        <span>Domain Blocker</span>
+                        <span id="blockerCountPill" class="bg-rose-500/20 text-rose-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-rose-500/30">0</span>
+                    </button>
                     <button onclick="switchTab('cachemgr')" id="tabBtn-cachemgr" class="tab-btn px-3 py-3.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition">
                         <i data-lucide="terminal" class="w-4 h-4"></i>
                         <span>Squid Cache Manager (mgr:info)</span>
@@ -330,6 +335,7 @@
                                 <th class="px-4 py-3">Domain / URL</th>
                                 <th class="px-4 py-3">Size</th>
                                 <th class="px-4 py-3">Duration</th>
+                                <th class="px-4 py-3 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody id="logsTableBody" class="divide-y divide-slate-800/60 font-mono">
@@ -378,6 +384,7 @@
                                 <th class="px-4 py-3">Cache Hits</th>
                                 <th class="px-4 py-3">Blocked / Denied</th>
                                 <th class="px-4 py-3">Bandwidth</th>
+                                <th class="px-4 py-3 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody id="domainsTableBody" class="divide-y divide-slate-800 font-mono">
@@ -387,7 +394,85 @@
                 </div>
             </div>
 
-            <!-- TAB 4: Cache Manager Explorer -->
+            <!-- TAB 4: Domain Blocker -->
+            <div id="tabContent-blocker" class="p-4 sm:p-6 space-y-5 hidden">
+                <!-- Notification Alert Banner -->
+                <div id="blockerAlert" class="hidden p-3 rounded-xl text-xs flex items-center justify-between border"></div>
+
+                <!-- Top Controls & Add Form -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <!-- Form Card (2 cols) -->
+                    <div class="lg:col-span-2 bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2">
+                                <i data-lucide="plus-circle" class="w-4 h-4 text-rose-400"></i>
+                                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-200">Add Domain to Blocklist</h3>
+                            </div>
+                            <span class="text-[11px] text-slate-400 font-mono truncate max-w-xs" id="blocklistFilePath">/etc/squid/blocked_domains.acl</span>
+                        </div>
+                        
+                        <form onsubmit="handleAddDomain(event)" class="flex flex-col sm:flex-row gap-2">
+                            <div class="relative flex-1">
+                                <i data-lucide="globe" class="w-4 h-4 absolute left-3 top-3 text-slate-500"></i>
+                                <input type="text" id="newBlockDomainInput" required placeholder="e.g. tiktok.com or .facebook.com (leading dot blocks subdomains)" class="w-full pl-9 pr-3 py-2 text-xs rounded-lg bg-slate-950 border border-slate-700 text-slate-200 font-mono focus:outline-none focus:border-rose-500">
+                            </div>
+                            <button type="submit" id="addBlockBtn" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs flex items-center justify-center space-x-1.5 transition whitespace-nowrap">
+                                <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                                <span>Block Domain</span>
+                            </button>
+                        </form>
+                        <p class="text-[11px] text-slate-400">
+                            💡 Tip: Enter <code class="text-rose-300 font-mono">example.com</code> to block the exact domain, or <code class="text-rose-300 font-mono">.example.com</code> (leading dot) to block the domain and all its subdomains.
+                        </p>
+                    </div>
+
+                    <!-- Action Card (1 col) -->
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-3">
+                        <div>
+                            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Squid ACL Sync</h3>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">
+                                Changes are loaded via <code class="text-teal-300 font-mono">squid -k reconfigure</code> without dropping active proxy connections.
+                            </p>
+                        </div>
+                        <button onclick="reloadSquidACLs()" id="syncAclBtn" class="w-full px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium flex items-center justify-center space-x-2 transition">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-teal-400" id="syncAclIcon"></i>
+                            <span id="syncAclText">Reload Squid ACLs Now</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Blocked Domains List Table -->
+                <div class="space-y-3">
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                        <div class="flex items-center space-x-2">
+                            <h3 class="text-sm font-semibold text-slate-200">Active Blocked Domains</h3>
+                            <span id="blockedTotalBadge" class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-mono">0 domains</span>
+                        </div>
+                        <div class="relative w-full sm:w-64">
+                            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500"></i>
+                            <input type="text" id="blockedSearchInput" oninput="filterBlockedDomains()" placeholder="Filter blocked domains..." class="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-rose-500">
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto border border-slate-700/60 rounded-xl bg-slate-900/60 max-h-96 overflow-y-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950/70 text-slate-400 uppercase font-mono tracking-wider sticky top-0 z-10 border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-3">#</th>
+                                    <th class="px-4 py-3">Blocked Domain</th>
+                                    <th class="px-4 py-3">Rule Scope</th>
+                                    <th class="px-4 py-3 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="blockedTableBody" class="divide-y divide-slate-800 font-mono">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: Cache Manager Explorer -->
             <div id="tabContent-cachemgr" class="p-4 sm:p-6 space-y-4 hidden">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center space-x-3">
@@ -436,6 +521,7 @@
         let logFilterType = 'ALL';
         let cachedStats = null;
         let allLogs = [];
+        let blockedDomains = [];
         let trafficChart = null;
         let hitDonutChart = null;
 
@@ -455,6 +541,24 @@
             const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Show Blocker Alert
+        function showBlockerAlert(message, isError = false) {
+            const el = document.getElementById('blockerAlert');
+            el.className = isError 
+                ? "p-3 rounded-xl text-xs flex items-center justify-between border bg-rose-950/80 border-rose-800 text-rose-300"
+                : "p-3 rounded-xl text-xs flex items-center justify-between border bg-emerald-950/80 border-emerald-800 text-emerald-300";
+            el.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="${isError ? 'alert-triangle' : 'check-circle'}" class="w-4 h-4"></i>
+                    <span>${message}</span>
+                </div>
+                <button onclick="document.getElementById('blockerAlert').classList.add('hidden')" class="text-slate-400 hover:text-white">✕</button>
+            `;
+            el.classList.remove('hidden');
+            lucide.createIcons();
+            setTimeout(() => { el.classList.add('hidden'); }, 6000);
         }
 
         // Initialize Charts
@@ -537,9 +641,10 @@
         // Switch Tabs
         function switchTab(tabName) {
             activeTab = tabName;
-            ['logs', 'clients', 'domains', 'cachemgr'].forEach(tab => {
+            ['logs', 'clients', 'domains', 'blocker', 'cachemgr'].forEach(tab => {
                 const btn = document.getElementById(`tabBtn-${tab}`);
                 const content = document.getElementById(`tabContent-${tab}`);
+                if (!btn || !content) return;
                 if (tab === tabName) {
                     btn.classList.add('border-teal-500', 'text-teal-400');
                     btn.classList.remove('border-transparent', 'text-slate-400');
@@ -553,6 +658,8 @@
 
             if (tabName === 'cachemgr' && document.getElementById('cacheMgrOutput').textContent.includes('Loading')) {
                 executeCacheMgr();
+            } else if (tabName === 'blocker') {
+                fetchBlockedDomains();
             }
         }
 
@@ -616,12 +723,10 @@
         function applyLogFilters() {
             const searchTerm = document.getElementById('logSearchInput').value.toLowerCase().trim();
             const filtered = allLogs.filter(log => {
-                // Type filter
                 if (logFilterType === 'HIT' && !log.is_hit) return false;
                 if (logFilterType === 'MISS' && (log.is_hit || log.is_denied)) return false;
                 if (logFilterType === 'DENIED' && !log.is_denied) return false;
 
-                // Search term
                 if (searchTerm) {
                     return log.client_ip.toLowerCase().includes(searchTerm) ||
                            log.domain.toLowerCase().includes(searchTerm) ||
@@ -636,11 +741,10 @@
         function renderLogsTable(logs) {
             const tbody = document.getElementById('logsTableBody');
             if (!logs || logs.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-500">No log entries recorded yet</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-500">No log entries recorded yet</td></tr>`;
                 return;
             }
 
-            // Display in reverse (latest first)
             const html = [...logs].reverse().slice(0, 100).map(log => {
                 let badgeClass = "bg-slate-800 text-slate-300 border-slate-700";
                 if (log.is_hit) {
@@ -655,6 +759,8 @@
                 if (log.http_status >= 200 && log.http_status < 300) statusBadge = "text-emerald-400";
                 else if (log.http_status >= 300 && log.http_status < 400) statusBadge = "text-blue-400";
                 else if (log.http_status >= 400) statusBadge = "text-rose-400 font-bold";
+
+                const isBlocked = blockedDomains.includes(log.domain) || blockedDomains.includes(`.${log.domain}`);
 
                 return `
                     <tr class="hover:bg-slate-800/40 transition">
@@ -672,6 +778,12 @@
                         </td>
                         <td class="px-4 py-2.5 text-slate-300">${formatBytes(log.bytes)}</td>
                         <td class="px-4 py-2.5 text-slate-400">${log.duration_ms} ms</td>
+                        <td class="px-4 py-2.5 text-right">
+                            ${isBlocked 
+                                ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-rose-950/80 text-rose-400 border border-rose-800 font-sans">Blocked</span>`
+                                : `<button onclick="quickBlockDomain('${log.domain}')" class="px-2 py-0.5 rounded text-[11px] bg-slate-800 hover:bg-rose-900/60 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-700 transition font-sans">Block</button>`
+                            }
+                        </td>
                     </tr>
                 `;
             }).join('');
@@ -711,18 +823,188 @@
         function renderTopDomains(domains) {
             const tbody = document.getElementById('domainsTableBody');
             if (!domains || domains.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500">No domains recorded</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-500">No domains recorded</td></tr>`;
                 return;
             }
-            tbody.innerHTML = domains.map(d => `
-                <tr class="hover:bg-slate-800/40 transition">
-                    <td class="px-4 py-3 font-semibold text-teal-300">${d.domain}</td>
-                    <td class="px-4 py-3 text-slate-200">${d.requests.toLocaleString()}</td>
-                    <td class="px-4 py-3 text-emerald-400 font-medium">${d.hits.toLocaleString()} (${d.hit_ratio}%)</td>
-                    <td class="px-4 py-3 ${d.denied > 0 ? 'text-rose-400 font-bold' : 'text-slate-500'}">${d.denied.toLocaleString()}</td>
-                    <td class="px-4 py-3 text-slate-300">${formatBytes(d.bytes)}</td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = domains.map(d => {
+                const isBlocked = blockedDomains.includes(d.domain) || blockedDomains.includes(`.${d.domain}`);
+                return `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="px-4 py-3 font-semibold text-teal-300">${d.domain}</td>
+                        <td class="px-4 py-3 text-slate-200">${d.requests.toLocaleString()}</td>
+                        <td class="px-4 py-3 text-emerald-400 font-medium">${d.hits.toLocaleString()} (${d.hit_ratio}%)</td>
+                        <td class="px-4 py-3 ${d.denied > 0 ? 'text-rose-400 font-bold' : 'text-slate-500'}">${d.denied.toLocaleString()}</td>
+                        <td class="px-4 py-3 text-slate-300">${formatBytes(d.bytes)}</td>
+                        <td class="px-4 py-3 text-right">
+                            ${isBlocked 
+                                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs bg-rose-950/80 text-rose-400 border border-rose-800 font-sans">Blocked</span>`
+                                : `<button onclick="quickBlockDomain('${d.domain}')" class="px-2.5 py-1 rounded text-xs bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 border border-slate-700 hover:border-rose-700 transition font-sans flex items-center space-x-1 ml-auto">
+                                    <i data-lucide="shield-ban" class="w-3 h-3 text-rose-400"></i>
+                                    <span>Block</span>
+                                   </button>`
+                            }
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        // --- Domain Blocker Functions ---
+        async function fetchBlockedDomains() {
+            try {
+                const res = await fetch('/api/blocked-domains');
+                const data = await res.json();
+                blockedDomains = data.domains || [];
+                
+                // Update UI badges & file path
+                document.getElementById('blockerCountPill').textContent = blockedDomains.length;
+                document.getElementById('blockedTotalBadge').textContent = `${blockedDomains.length} domains`;
+                if (data.file_path) {
+                    document.getElementById('blocklistFilePath').textContent = data.file_path;
+                }
+
+                filterBlockedDomains();
+            } catch (err) {
+                console.error("Failed to fetch blocked domains:", err);
+            }
+        }
+
+        function filterBlockedDomains() {
+            const query = document.getElementById('blockedSearchInput').value.toLowerCase().trim();
+            const filtered = blockedDomains.filter(d => !query || d.toLowerCase().includes(query));
+            renderBlockedDomainsTable(filtered);
+        }
+
+        function renderBlockedDomainsTable(domains) {
+            const tbody = document.getElementById('blockedTableBody');
+            if (!domains || domains.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-500 font-sans">No blocked domains in list. Add domains above to start blocking.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = domains.map((d, index) => {
+                const isWildcard = d.startsWith('.');
+                const scopeBadge = isWildcard
+                    ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-purple-950/80 text-purple-300 border border-purple-800 font-sans">All Subdomains (*${d})</span>`
+                    : `<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-300 border border-slate-700 font-sans">Exact Domain</span>`;
+
+                return `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="px-4 py-3 text-slate-500 w-12">${index + 1}</td>
+                        <td class="px-4 py-3 text-rose-300 font-semibold flex items-center space-x-2">
+                            <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-rose-400"></i>
+                            <span>${d}</span>
+                        </td>
+                        <td class="px-4 py-3">${scopeBadge}</td>
+                        <td class="px-4 py-3 text-right">
+                            <button onclick="unblockDomain('${d}')" class="px-2.5 py-1 rounded text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-100 border border-slate-700 transition font-sans inline-flex items-center space-x-1">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-400"></i>
+                                <span>Unblock</span>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        async function handleAddDomain(e) {
+            e.preventDefault();
+            const input = document.getElementById('newBlockDomainInput');
+            const domain = input.value.trim();
+            if (!domain) return;
+
+            const btn = document.getElementById('addBlockBtn');
+            btn.disabled = true;
+            btn.innerHTML = `<span>Blocking...</span>`;
+
+            try {
+                const res = await fetch('/api/blocked-domains', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ domain })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showBlockerAlert(data.message, false);
+                    input.value = "";
+                    fetchBlockedDomains();
+                } else {
+                    showBlockerAlert(data.message || "Failed to block domain.", true);
+                }
+            } catch (err) {
+                showBlockerAlert(`Network error: ${err.message}`, true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="shield-alert" class="w-4 h-4"></i><span>Block Domain</span>`;
+                lucide.createIcons();
+            }
+        }
+
+        async function quickBlockDomain(domain) {
+            if (!confirm(`Are you sure you want to block '${domain}' on Squid Proxy?`)) {
+                return;
+            }
+            try {
+                const res = await fetch('/api/blocked-domains', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ domain })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showBlockerAlert(data.message, false);
+                    fetchBlockedDomains();
+                    fetchStats();
+                } else {
+                    showBlockerAlert(data.message || "Failed to block domain.", true);
+                }
+            } catch (err) {
+                showBlockerAlert(`Error: ${err.message}`, true);
+            }
+        }
+
+        async function unblockDomain(domain) {
+            if (!confirm(`Are you sure you want to unblock '${domain}'?`)) {
+                return;
+            }
+            try {
+                const res = await fetch(`/api/blocked-domains/${encodeURIComponent(domain)}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showBlockerAlert(data.message, false);
+                    fetchBlockedDomains();
+                    fetchStats();
+                } else {
+                    showBlockerAlert(data.message || "Failed to unblock domain.", true);
+                }
+            } catch (err) {
+                showBlockerAlert(`Error: ${err.message}`, true);
+            }
+        }
+
+        async function reloadSquidACLs() {
+            const btn = document.getElementById('syncAclBtn');
+            const icon = document.getElementById('syncAclIcon');
+            const text = document.getElementById('syncAclText');
+            btn.disabled = true;
+            text.textContent = "Reloading...";
+            icon.classList.add('animate-spin');
+
+            try {
+                const res = await fetch('/api/blocked-domains/reconfigure', { method: 'POST' });
+                const data = await res.json();
+                showBlockerAlert(data.message, !data.success);
+            } catch (err) {
+                showBlockerAlert(`Error: ${err.message}`, true);
+            } finally {
+                btn.disabled = false;
+                text.textContent = "Reload Squid ACLs Now";
+                icon.classList.remove('animate-spin');
+            }
         }
 
         // Update UI with new state
@@ -858,6 +1140,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             initCharts();
             fetchStats();
+            fetchBlockedDomains();
             initWebSocket();
         });
     </script>

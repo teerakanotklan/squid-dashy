@@ -1,12 +1,17 @@
 import asyncio
 import os
 from contextlib import asynccontextmanager
+from pydantic import BaseModel
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from config import config
 from squid_service import monitor
+from domain_blocker import domain_blocker
+
+class BlockDomainRequest(BaseModel):
+    domain: str
 
 background_task = None
 
@@ -78,6 +83,30 @@ async def query_cache_manager(action: str):
     
     output = await asyncio.to_thread(monitor.query_squid_mgr, action)
     return {"action": action, "output": output}
+
+# --- Domain Blocking Endpoints ---
+@app.get("/api/blocked-domains")
+async def get_blocked_domains():
+    return domain_blocker.get_blocked_domains()
+
+@app.post("/api/blocked-domains")
+async def add_blocked_domain(req: BlockDomainRequest):
+    result = await asyncio.to_thread(domain_blocker.add_domain, req.domain)
+    if not result.get("success"):
+        return JSONResponse(status_code=400, content=result)
+    return result
+
+@app.delete("/api/blocked-domains/{domain:path}")
+async def remove_blocked_domain(domain: str):
+    result = await asyncio.to_thread(domain_blocker.remove_domain, domain)
+    if not result.get("success"):
+        return JSONResponse(status_code=400, content=result)
+    return result
+
+@app.post("/api/blocked-domains/reconfigure")
+async def reconfigure_squid():
+    result = await asyncio.to_thread(domain_blocker.reconfigure_squid)
+    return result
 
 @app.websocket("/ws/live")
 async def websocket_endpoint(websocket: WebSocket):

@@ -126,6 +126,13 @@ else
     exit 1
 fi
 
+# Prepare blocked domains file if /etc/squid directory exists
+if [ -d "/etc/squid" ] && [ ! -f "/etc/squid/blocked_domains.acl" ]; then
+    touch /etc/squid/blocked_domains.acl
+    chmod 664 /etc/squid/blocked_domains.acl
+    echo -e "${GREEN}[OK] Initialized /etc/squid/blocked_domains.acl${NC}"
+fi
+
 # Detect Local IP Address
 SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 if [ -z "$SERVER_IP" ]; then
@@ -173,6 +180,7 @@ Environment=DASHBOARD_PORT=8080
 Environment=SQUID_HOST=127.0.0.1
 Environment=SQUID_PORT=3128
 Environment=SQUID_ACCESS_LOG=/var/log/squid/access.log
+Environment=SQUID_BLOCKED_DOMAINS_FILE=/etc/squid/blocked_domains.acl
 
 [Install]
 WantedBy=multi-user.target
