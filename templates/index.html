@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Squid Proxy Dashboard | แดชบอร์ดตรวจสอบสถานะ Squid</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        squid: {
+                            50: '#f0fdfa',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            900: '#134e4a',
+                        },
+                        darkbg: '#0f172a',
+                        cardbg: '#1e293b',
+                        borderbg: '#334155'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', 'Sarabun', sans-serif;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .pulse-dot {
+            animation: pulseAnimation 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulseAnimation {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body class="bg-[#0b1120] text-slate-100 min-h-screen antialiased flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="border-b border-slate-800 bg-[#0f172a]/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
+                    <i data-lucide="shield-check" class="w-6 h-6 text-slate-950"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="font-bold text-lg text-white tracking-tight">Squid Proxy Monitor</h1>
+                        <span id="serviceStatusBadge" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 pulse-dot"></span>
+                            <span id="serviceStatusText">ONLINE</span>
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400 flex items-center space-x-2">
+                        <span id="squidVersion">Squid Cache</span>
+                        <span>•</span>
+                        <span id="squidEndpoint">127.0.0.1:3128</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Header Controls -->
+            <div class="flex items-center space-x-3">
+                <!-- Mode toggle button -->
+                <button id="modeToggleBtn" onclick="toggleMode()" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition flex items-center space-x-1.5">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-teal-400"></i>
+                    <span id="modeBadgeText">Mode: Live</span>
+                </button>
+
+                <!-- WebSocket Connection Indicator -->
+                <div class="hidden sm:flex items-center space-x-1.5 text-xs text-slate-400 bg-slate-800/60 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                    <span id="wsIndicator" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span id="wsStatusText">Live Sync</span>
+                </div>
+
+                <!-- Clock -->
+                <div class="hidden md:block text-xs font-mono text-slate-400 bg-slate-800/40 px-2.5 py-1.5 rounded-lg border border-slate-800" id="liveClock">
+                    00:00:00
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- KPI Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- Card 1: Request Hit Ratio -->
+            <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur shadow-sm relative overflow-hidden group hover:border-teal-500/50 transition">
+                <div class="absolute -right-3 -top-3 w-20 h-20 bg-teal-500/10 rounded-full blur-xl group-hover:bg-teal-500/20 transition"></div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Request Hit Ratio</span>
+                    <div class="p-2 rounded-lg bg-teal-500/10 text-teal-400">
+                        <i data-lucide="zap" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline space-x-2">
+                    <span class="text-3xl font-bold text-white tracking-tight" id="reqHitRatio">0.0%</span>
+                    <span class="text-xs text-slate-400">จากคำขอทั้งหมด</span>
+                </div>
+                <div class="mt-3 w-full bg-slate-700/60 h-2 rounded-full overflow-hidden">
+                    <div id="reqHitBar" class="bg-gradient-to-r from-teal-500 to-emerald-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <div class="mt-2.5 flex justify-between text-xs text-slate-400">
+                    <span>Hits: <strong class="text-emerald-400" id="kpiHitCount">0</strong></span>
+                    <span>Misses: <strong class="text-amber-400" id="kpiMissCount">0</strong></span>
+                </div>
+            </div>
+
+            <!-- Card 2: Byte Hit Ratio (Bandwidth Saved) -->
+            <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur shadow-sm relative overflow-hidden group hover:border-emerald-500/50 transition">
+                <div class="absolute -right-3 -top-3 w-20 h-20 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition"></div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Byte Hit Ratio</span>
+                    <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                        <i data-lucide="arrow-down-to-line" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline space-x-2">
+                    <span class="text-3xl font-bold text-white tracking-tight" id="byteHitRatio">0.0%</span>
+                    <span class="text-xs text-emerald-400 font-medium" id="savedBytes">0 MB ประหยัดได้</span>
+                </div>
+                <div class="mt-3 w-full bg-slate-700/60 h-2 rounded-full overflow-hidden">
+                    <div id="byteHitBar" class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <div class="mt-2.5 flex justify-between text-xs text-slate-400">
+                    <span>Total: <strong class="text-slate-300" id="kpiTotalBytes">0 MB</strong></span>
+                    <span>Saved: <strong class="text-emerald-400" id="kpiSavedBytesShort">0 MB</strong></span>
+                </div>
+            </div>
+
+            <!-- Card 3: Throughput & Requests Rate -->
+            <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur shadow-sm relative overflow-hidden group hover:border-cyan-500/50 transition">
+                <div class="absolute -right-3 -top-3 w-20 h-20 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition"></div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Throughput / อัตราคำขอ</span>
+                    <div class="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline space-x-2">
+                    <span class="text-3xl font-bold text-white tracking-tight" id="reqPerSec">0.0</span>
+                    <span class="text-xs text-slate-400">req/s</span>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-xs text-slate-300 border-t border-slate-700/50 pt-2">
+                    <span>Bandwidth:</span>
+                    <span class="font-mono font-semibold text-cyan-300" id="bandwidthSec">0 KB/s</span>
+                </div>
+                <div class="mt-1 flex items-center justify-between text-xs text-slate-400">
+                    <span>คำขอทั้งหมด:</span>
+                    <span class="font-semibold text-slate-200" id="kpiTotalRequests">0</span>
+                </div>
+            </div>
+
+            <!-- Card 4: Hardware & Cache Storage -->
+            <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur shadow-sm relative overflow-hidden group hover:border-indigo-500/50 transition">
+                <div class="absolute -right-3 -top-3 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl group-hover:bg-indigo-500/20 transition"></div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">ทรัพยากร / สตอเรจแคช</span>
+                    <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+                        <i data-lucide="hard-drive" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <div>
+                        <div class="flex justify-between text-slate-400 mb-1">
+                            <span>Disk Cache</span>
+                            <span class="font-mono text-slate-300" id="diskCacheText">0 / 10 GB</span>
+                        </div>
+                        <div class="w-full bg-slate-700/60 h-1.5 rounded-full overflow-hidden">
+                            <div id="diskCacheBar" class="bg-indigo-400 h-1.5 rounded-full" style="width: 20%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-slate-400 mb-1">
+                            <span>RAM Cache</span>
+                            <span class="font-mono text-slate-300" id="ramCacheText">0 / 512 MB</span>
+                        </div>
+                        <div class="w-full bg-slate-700/60 h-1.5 rounded-full overflow-hidden">
+                            <div id="ramCacheBar" class="bg-purple-400 h-1.5 rounded-full" style="width: 30%"></div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-slate-400 pt-1 border-t border-slate-700/40">
+                        <span>CPU: <strong class="text-slate-200" id="cpuUsage">0%</strong></span>
+                        <span>Clients: <strong class="text-teal-400" id="activeClientsCount">0</strong></span>
+                        <span>FDs: <strong class="text-slate-200" id="fdUsage">0</strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Chart 1: Realtime Traffic Timeline (2 cols) -->
+            <div class="lg:col-span-2 bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="trending-up" class="w-5 h-5 text-teal-400"></i>
+                        <h2 class="font-semibold text-slate-200 text-sm">ปริมาณคำขอและทราฟฟิกตามเวลาจริง (Real-time Throughput)</h2>
+                    </div>
+                    <span class="text-xs text-slate-400 font-mono">อัปเดตทุก 2 วินาที</span>
+                </div>
+                <div class="h-64">
+                    <canvas id="trafficChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 2: Hit vs Miss vs Denied Doughnut (1 col) -->
+            <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 backdrop-blur flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="pie-chart" class="w-5 h-5 text-emerald-400"></i>
+                        <h2 class="font-semibold text-slate-200 text-sm">สัดส่วนผลลัพธ์แคช (Hit / Miss / Denied)</h2>
+                    </div>
+                </div>
+                <div class="flex-1 flex items-center justify-center h-48">
+                    <canvas id="hitDonutChart"></canvas>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mt-4 text-center text-xs">
+                    <div class="bg-slate-900/40 p-2 rounded-lg border border-slate-700/40">
+                        <span class="block text-emerald-400 font-bold" id="donutHit">0</span>
+                        <span class="text-slate-400">Hits</span>
+                    </div>
+                    <div class="bg-slate-900/40 p-2 rounded-lg border border-slate-700/40">
+                        <span class="block text-amber-400 font-bold" id="donutMiss">0</span>
+                        <span class="text-slate-400">Misses</span>
+                    </div>
+                    <div class="bg-slate-900/40 p-2 rounded-lg border border-slate-700/40">
+                        <span class="block text-rose-400 font-bold" id="donutDenied">0</span>
+                        <span class="text-slate-400">Denied</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabbed Section -->
+        <div class="bg-slate-800/70 border border-slate-700/60 rounded-2xl backdrop-blur overflow-hidden">
+            <!-- Tabs Navigation -->
+            <div class="border-b border-slate-700/80 bg-slate-900/50 px-4 flex flex-wrap items-center justify-between gap-3">
+                <nav class="flex space-x-2 sm:space-x-4">
+                    <button onclick="switchTab('logs')" id="tabBtn-logs" class="tab-btn px-3 py-3.5 text-xs sm:text-sm font-medium border-b-2 border-teal-500 text-teal-400 flex items-center space-x-2 transition">
+                        <i data-lucide="list" class="w-4 h-4"></i>
+                        <span>Live Access Logs</span>
+                    </button>
+                    <button onclick="switchTab('clients')" id="tabBtn-clients" class="tab-btn px-3 py-3.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition">
+                        <i data-lucide="users" class="w-4 h-4"></i>
+                        <span>Top Client IPs</span>
+                    </button>
+                    <button onclick="switchTab('domains')" id="tabBtn-domains" class="tab-btn px-3 py-3.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition">
+                        <i data-lucide="globe" class="w-4 h-4"></i>
+                        <span>Top Domains & Blocks</span>
+                    </button>
+                    <button onclick="switchTab('cachemgr')" id="tabBtn-cachemgr" class="tab-btn px-3 py-3.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center space-x-2 transition">
+                        <i data-lucide="terminal" class="w-4 h-4"></i>
+                        <span>Squid Cache Manager (mgr:info)</span>
+                    </button>
+                </nav>
+
+                <!-- Status Counters Quick Chips -->
+                <div id="statusBadgesContainer" class="hidden sm:flex items-center space-x-2 py-2">
+                    <!-- populated dynamically -->
+                </div>
+            </div>
+
+            <!-- TAB 1: Live Access Logs -->
+            <div id="tabContent-logs" class="p-4 sm:p-6 space-y-4">
+                <!-- Log Controls -->
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Search input -->
+                        <div class="relative w-full sm:w-64">
+                            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+                            <input type="text" id="logSearchInput" oninput="applyLogFilters()" placeholder="ค้นหา IP, โดเมน, URL..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 focus:outline-none focus:border-teal-500">
+                        </div>
+                        <!-- Filter Type -->
+                        <div class="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-700 text-xs">
+                            <button onclick="setLogTypeFilter('ALL')" id="filterBtn-ALL" class="px-2.5 py-1 rounded-md bg-teal-600 text-white font-medium">ทั้งหมด</button>
+                            <button onclick="setLogTypeFilter('HIT')" id="filterBtn-HIT" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Hits Only</button>
+                            <button onclick="setLogTypeFilter('MISS')" id="filterBtn-MISS" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Miss Only</button>
+                            <button onclick="setLogTypeFilter('DENIED')" id="filterBtn-DENIED" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">Blocked / 403</button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <button id="pauseLogBtn" onclick="toggleLogPause()" class="px-3 py-1.5 text-xs rounded-lg border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 flex items-center space-x-1">
+                            <i data-lucide="pause" class="w-3.5 h-3.5" id="pauseLogIcon"></i>
+                            <span id="pauseLogText">พักชั่วคราว</span>
+                        </button>
+                        <button onclick="clearLogDisplay()" class="px-3 py-1.5 text-xs rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-200 flex items-center space-x-1">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            <span>ล้างจอ</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Logs Table -->
+                <div class="overflow-x-auto border border-slate-700/60 rounded-xl bg-slate-900/60 max-h-96 overflow-y-auto">
+                    <table class="w-full text-left text-xs whitespace-nowrap">
+                        <thead class="bg-slate-950/70 text-slate-400 uppercase font-mono tracking-wider sticky top-0 z-10 border-b border-slate-800">
+                            <tr>
+                                <th class="px-4 py-3">เวลา (UTC)</th>
+                                <th class="px-4 py-3">Client IP</th>
+                                <th class="px-4 py-3">Result / Code</th>
+                                <th class="px-4 py-3">Status</th>
+                                <th class="px-4 py-3">Method</th>
+                                <th class="px-4 py-3">Domain / URL</th>
+                                <th class="px-4 py-3">ขนาด (Bytes)</th>
+                                <th class="px-4 py-3">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody" class="divide-y divide-slate-800/60 font-mono">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: Top Clients -->
+            <div id="tabContent-clients" class="p-4 sm:p-6 space-y-4 hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-semibold text-slate-200">เครื่องลูกข่ายที่มีการใช้งานสูงสุด (Top Active Clients)</h3>
+                    <span class="text-xs text-slate-400">เรียงตามจำนวน Request</span>
+                </div>
+                <div class="overflow-x-auto border border-slate-700/60 rounded-xl bg-slate-900/60">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-950/70 text-slate-400 uppercase font-mono tracking-wider border-b border-slate-800">
+                            <tr>
+                                <th class="px-4 py-3">Client IP</th>
+                                <th class="px-4 py-3">จำนวนคำขอ</th>
+                                <th class="px-4 py-3">สัดส่วน Hit Ratio</th>
+                                <th class="px-4 py-3">ข้อมูลที่ส่ง (Bandwidth)</th>
+                                <th class="px-4 py-3">ใช้งานล่าสุด</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientsTableBody" class="divide-y divide-slate-800 font-mono">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 3: Top Domains -->
+            <div id="tabContent-domains" class="p-4 sm:p-6 space-y-4 hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-sm font-semibold text-slate-200">เว็บไซต์และโดเมนที่ถูกเรียกใช้งานบ่อยที่สุด (Top Requested Domains)</h3>
+                    <span class="text-xs text-slate-400">รวมถึงสถิติการบล็อก</span>
+                </div>
+                <div class="overflow-x-auto border border-slate-700/60 rounded-xl bg-slate-900/60">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-950/70 text-slate-400 uppercase font-mono tracking-wider border-b border-slate-800">
+                            <tr>
+                                <th class="px-4 py-3">Domain</th>
+                                <th class="px-4 py-3">จำนวนคำขอ</th>
+                                <th class="px-4 py-3">Cache Hits</th>
+                                <th class="px-4 py-3">Blocked / Denied</th>
+                                <th class="px-4 py-3">ขนาดข้อมูล</th>
+                            </tr>
+                        </thead>
+                        <tbody id="domainsTableBody" class="divide-y divide-slate-800 font-mono">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 4: Cache Manager Explorer -->
+            <div id="tabContent-cachemgr" class="p-4 sm:p-6 space-y-4 hidden">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center space-x-3">
+                        <label class="text-xs font-semibold text-slate-300">เลือกคำสั่ง Cache Manager:</label>
+                        <select id="cacheMgrSelect" class="bg-slate-900 border border-slate-700 text-teal-400 text-xs font-mono rounded-lg px-3 py-1.5 focus:outline-none focus:border-teal-500">
+                            <option value="info">mgr:info (General Cache Information)</option>
+                            <option value="5min">mgr:5min (5-Minute Stats)</option>
+                            <option value="utilization">mgr:utilization (Cache Utilization)</option>
+                            <option value="client_list">mgr:client_list (Connected Clients)</option>
+                            <option value="ipcache">mgr:ipcache (IP Cache Table)</option>
+                            <option value="counters">mgr:counters (Traffic Counters)</option>
+                        </select>
+                        <button onclick="executeCacheMgr()" class="px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white font-medium text-xs flex items-center space-x-1.5 transition">
+                            <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                            <span>Query Squid</span>
+                        </button>
+                    </div>
+
+                    <button onclick="copyCacheMgrOutput()" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs flex items-center space-x-1">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        <span id="copyBtnText">คัดลอกข้อความ</span>
+                    </button>
+                </div>
+
+                <div class="relative bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 max-h-96 overflow-y-auto" id="cacheMgrConsole">
+                    <pre id="cacheMgrOutput">กำลังโหลดข้อมูล Cache Manager...</pre>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 bg-slate-950/60 py-4 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span>Squid Proxy Web Dashboard • ติดตามสถานะและวิเคราะห์การทำงานของ Squid Proxy</span>
+            <span>Developed with FastAPI & Chart.js</span>
+        </div>
+    </footer>
+
+    <!-- App Logic Script -->
+    <script>
+        // State variables
+        let isPaused = false;
+        let activeTab = 'logs';
+        let logFilterType = 'ALL';
+        let cachedStats = null;
+        let allLogs = [];
+        let trafficChart = null;
+        let hitDonutChart = null;
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Clock
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('liveClock').textContent = now.toLocaleTimeString();
+        }, 1000);
+
+        // Helper format bytes
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Initialize Charts
+        function initCharts() {
+            // Traffic Chart
+            const ctxTraffic = document.getElementById('trafficChart').getContext('2d');
+            trafficChart = new Chart(ctxTraffic, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Requests / sec',
+                            data: [],
+                            borderColor: '#14b8a6',
+                            backgroundColor: 'rgba(20, 184, 166, 0.15)',
+                            fill: true,
+                            tension: 0.35,
+                            borderWidth: 2,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Bandwidth (KB/s)',
+                            data: [],
+                            borderColor: '#38bdf8',
+                            backgroundColor: 'transparent',
+                            borderDash: [4, 4],
+                            tension: 0.35,
+                            borderWidth: 1.5,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                            ticks: { color: '#64748b', maxTicksLimit: 8 }
+                        },
+                        y: {
+                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                            ticks: { color: '#64748b' },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Donut Chart
+            const ctxDonut = document.getElementById('hitDonutChart').getContext('2d');
+            hitDonutChart = new Chart(ctxDonut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Hits', 'Misses', 'Denied'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#10b981', '#f59e0b', '#f43f5e'],
+                        borderColor: '#1e293b',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '72%',
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // Switch Tabs
+        function switchTab(tabName) {
+            activeTab = tabName;
+            ['logs', 'clients', 'domains', 'cachemgr'].forEach(tab => {
+                const btn = document.getElementById(`tabBtn-${tab}`);
+                const content = document.getElementById(`tabContent-${tab}`);
+                if (tab === tabName) {
+                    btn.classList.add('border-teal-500', 'text-teal-400');
+                    btn.classList.remove('border-transparent', 'text-slate-400');
+                    content.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('border-teal-500', 'text-teal-400');
+                    btn.classList.add('border-transparent', 'text-slate-400');
+                    content.classList.add('hidden');
+                }
+            });
+
+            if (tabName === 'cachemgr' && document.getElementById('cacheMgrOutput').textContent.includes('กำลังโหลด')) {
+                executeCacheMgr();
+            }
+        }
+
+        // Toggle Demo Mode
+        async function toggleMode() {
+            try {
+                const res = await fetch('/api/mode/toggle', { method: 'POST' });
+                const data = await res.json();
+                fetchStats();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Execute Cache Manager Query
+        async function executeCacheMgr() {
+            const action = document.getElementById('cacheMgrSelect').value;
+            const outputEl = document.getElementById('cacheMgrOutput');
+            outputEl.textContent = `Running query: mgr:${action}...`;
+            try {
+                const res = await fetch(`/api/squidmgr/${action}`);
+                const data = await res.json();
+                outputEl.textContent = data.output || "No output returned.";
+            } catch (err) {
+                outputEl.textContent = `Error executing mgr:${action}: ${err}`;
+            }
+        }
+
+        function copyCacheMgrOutput() {
+            const text = document.getElementById('cacheMgrOutput').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btnText = document.getElementById('copyBtnText');
+                btnText.textContent = "คัดลอกเรียบร้อย!";
+                setTimeout(() => { btnText.textContent = "คัดลอกข้อความ"; }, 2000);
+            });
+        }
+
+        // Set Log Type Filter
+        function setLogTypeFilter(type) {
+            logFilterType = type;
+            ['ALL', 'HIT', 'MISS', 'DENIED'].forEach(t => {
+                const btn = document.getElementById(`filterBtn-${t}`);
+                if (t === type) {
+                    btn.className = "px-2.5 py-1 rounded-md bg-teal-600 text-white font-medium";
+                } else {
+                    btn.className = "px-2.5 py-1 rounded-md text-slate-400 hover:text-white";
+                }
+            });
+            applyLogFilters();
+        }
+
+        function toggleLogPause() {
+            isPaused = !isPaused;
+            const text = document.getElementById('pauseLogText');
+            const icon = document.getElementById('pauseLogIcon');
+            if (isPaused) {
+                text.textContent = "เริ่มทำงานต่อ";
+                icon.setAttribute('data-lucide', 'play');
+            } else {
+                text.textContent = "พักชั่วคราว";
+                icon.setAttribute('data-lucide', 'pause');
+            }
+            lucide.createIcons();
+        }
+
+        function clearLogDisplay() {
+            allLogs = [];
+            renderLogsTable([]);
+        }
+
+        // Apply Search and Filters to Logs
+        function applyLogFilters() {
+            const searchTerm = document.getElementById('logSearchInput').value.toLowerCase().trim();
+            const filtered = allLogs.filter(log => {
+                // Type filter
+                if (logFilterType === 'HIT' && !log.is_hit) return false;
+                if (logFilterType === 'MISS' && (log.is_hit || log.is_denied)) return false;
+                if (logFilterType === 'DENIED' && !log.is_denied) return false;
+
+                // Search term
+                if (searchTerm) {
+                    return log.client_ip.toLowerCase().includes(searchTerm) ||
+                           log.domain.toLowerCase().includes(searchTerm) ||
+                           log.result_code.toLowerCase().includes(searchTerm) ||
+                           log.url.toLowerCase().includes(searchTerm);
+                }
+                return true;
+            });
+            renderLogsTable(filtered);
+        }
+
+        function renderLogsTable(logs) {
+            const tbody = document.getElementById('logsTableBody');
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-500">ไม่มีข้อมูลบันทึกในขณะนี้</td></tr>`;
+                return;
+            }
+
+            // Display in reverse (latest first)
+            const html = [...logs].reverse().slice(0, 100).map(log => {
+                let badgeClass = "bg-slate-800 text-slate-300 border-slate-700";
+                if (log.is_hit) {
+                    badgeClass = "bg-emerald-950/70 text-emerald-300 border-emerald-800";
+                } else if (log.is_denied) {
+                    badgeClass = "bg-rose-950/70 text-rose-300 border-rose-800";
+                } else {
+                    badgeClass = "bg-amber-950/70 text-amber-300 border-amber-800";
+                }
+
+                let statusBadge = "text-slate-400";
+                if (log.http_status >= 200 && log.http_status < 300) statusBadge = "text-emerald-400";
+                else if (log.http_status >= 300 && log.http_status < 400) statusBadge = "text-blue-400";
+                else if (log.http_status >= 400) statusBadge = "text-rose-400 font-bold";
+
+                return `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="px-4 py-2.5 text-slate-400">${log.datetime.split(' ')[1]}</td>
+                        <td class="px-4 py-2.5 text-slate-200 font-medium">${log.client_ip}</td>
+                        <td class="px-4 py-2.5">
+                            <span class="inline-flex px-2 py-0.5 rounded text-[11px] border ${badgeClass}">
+                                ${log.result_code}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2.5 font-bold ${statusBadge}">${log.http_status}</td>
+                        <td class="px-4 py-2.5 text-slate-300">${log.method}</td>
+                        <td class="px-4 py-2.5 text-teal-300 truncate max-w-xs" title="${log.url}">
+                            ${log.domain}
+                        </td>
+                        <td class="px-4 py-2.5 text-slate-300">${formatBytes(log.bytes)}</td>
+                        <td class="px-4 py-2.5 text-slate-400">${log.duration_ms} ms</td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = html;
+        }
+
+        // Render Top Clients
+        function renderTopClients(clients) {
+            const tbody = document.getElementById('clientsTableBody');
+            if (!clients || clients.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500">ไม่มีข้อมูลเครื่องลูกข่าย</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = clients.map((c, i) => `
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="px-4 py-3 flex items-center space-x-2">
+                        <span class="w-5 h-5 rounded-full bg-slate-800 text-[10px] flex items-center justify-center font-bold text-slate-400">${i+1}</span>
+                        <span class="text-slate-100 font-semibold">${c.ip}</span>
+                    </td>
+                    <td class="px-4 py-3 text-slate-300">${c.requests.toLocaleString()}</td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-emerald-400 font-semibold w-12">${c.hit_ratio}%</span>
+                            <div class="w-20 bg-slate-700/60 h-1.5 rounded-full overflow-hidden">
+                                <div class="bg-emerald-400 h-1.5 rounded-full" style="width: ${c.hit_ratio}%"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-slate-300">${formatBytes(c.bytes)}</td>
+                    <td class="px-4 py-3 text-slate-400">${c.last_seen || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Render Top Domains
+        function renderTopDomains(domains) {
+            const tbody = document.getElementById('domainsTableBody');
+            if (!domains || domains.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-500">ไม่มีข้อมูลโดเมน</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = domains.map(d => `
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="px-4 py-3 font-semibold text-teal-300">${d.domain}</td>
+                    <td class="px-4 py-3 text-slate-200">${d.requests.toLocaleString()}</td>
+                    <td class="px-4 py-3 text-emerald-400 font-medium">${d.hits.toLocaleString()} (${d.hit_ratio}%)</td>
+                    <td class="px-4 py-3 ${d.denied > 0 ? 'text-rose-400 font-bold' : 'text-slate-500'}">${d.denied.toLocaleString()}</td>
+                    <td class="px-4 py-3 text-slate-300">${formatBytes(d.bytes)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Update UI with new state
+        function updateUI(state) {
+            cachedStats = state;
+
+            // Status & Mode
+            const isAlive = state.status.alive;
+            const statusBadge = document.getElementById('serviceStatusBadge');
+            const statusText = document.getElementById('serviceStatusText');
+            if (isAlive) {
+                statusBadge.className = "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800";
+                statusText.textContent = "ONLINE";
+            } else {
+                statusBadge.className = "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-950/80 text-rose-400 border border-rose-800";
+                statusText.textContent = "OFFLINE";
+            }
+
+            document.getElementById('squidVersion').textContent = state.status.version;
+            document.getElementById('squidEndpoint').textContent = `${state.status.target_host}:${state.status.target_port}`;
+            
+            const modeBtn = document.getElementById('modeBadgeText');
+            modeBtn.textContent = state.status.is_demo_mode ? "โหมด: จำลอง (Demo)" : "โหมด: Real-Squid";
+
+            // KPIs
+            const kpi = state.kpi;
+            document.getElementById('reqHitRatio').textContent = `${kpi.req_hit_pct}%`;
+            document.getElementById('reqHitBar').style.width = `${Math.min(100, kpi.req_hit_pct)}%`;
+            document.getElementById('kpiHitCount').textContent = kpi.hit_requests.toLocaleString();
+            document.getElementById('kpiMissCount').textContent = kpi.miss_requests.toLocaleString();
+
+            document.getElementById('byteHitRatio').textContent = `${kpi.byte_hit_pct}%`;
+            document.getElementById('byteHitBar').style.width = `${Math.min(100, kpi.byte_hit_pct)}%`;
+            document.getElementById('savedBytes').textContent = `${formatBytes(kpi.saved_bytes)} ประหยัดได้`;
+            document.getElementById('kpiTotalBytes').textContent = formatBytes(kpi.total_bytes);
+            document.getElementById('kpiSavedBytesShort').textContent = formatBytes(kpi.saved_bytes);
+
+            document.getElementById('reqPerSec').textContent = kpi.req_per_sec;
+            document.getElementById('bandwidthSec').textContent = `${kpi.kb_per_sec} KB/s`;
+            document.getElementById('kpiTotalRequests').textContent = kpi.total_requests.toLocaleString();
+
+            // Hardware & Resources
+            const met = state.metrics;
+            document.getElementById('cpuUsage').textContent = `${met.cpu_usage_pct}%`;
+            document.getElementById('activeClientsCount').textContent = kpi.active_clients;
+            document.getElementById('fdUsage').textContent = `${met.file_descriptors_used}/${met.file_descriptors_max}`;
+
+            const diskPct = Math.min(100, (met.disk_cache_used_mb / met.disk_cache_max_mb) * 100);
+            document.getElementById('diskCacheBar').style.width = `${diskPct}%`;
+            document.getElementById('diskCacheText').textContent = `${(met.disk_cache_used_mb / 1024).toFixed(1)} / ${(met.disk_cache_max_mb / 1024).toFixed(0)} GB`;
+
+            const ramPct = Math.min(100, (met.memory_used_mb / met.memory_max_mb) * 100);
+            document.getElementById('ramCacheBar').style.width = `${ramPct}%`;
+            document.getElementById('ramCacheText').textContent = `${met.memory_used_mb} / ${met.memory_max_mb} MB`;
+
+            // Status Counters Badges
+            const badgesContainer = document.getElementById('statusBadgesContainer');
+            const counters = state.status_counters || {};
+            badgesContainer.innerHTML = Object.entries(counters).slice(0, 4).map(([k, v]) => `
+                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300">
+                    ${k}: <strong class="text-teal-400">${v}</strong>
+                </span>
+            `).join('');
+
+            // Donut Chart update
+            if (hitDonutChart) {
+                hitDonutChart.data.datasets[0].data = [kpi.hit_requests, kpi.miss_requests, kpi.denied_requests];
+                hitDonutChart.update('none');
+                document.getElementById('donutHit').textContent = kpi.hit_requests.toLocaleString();
+                document.getElementById('donutMiss').textContent = kpi.miss_requests.toLocaleString();
+                document.getElementById('donutDenied').textContent = kpi.denied_requests.toLocaleString();
+            }
+
+            // Timeline Chart update
+            if (trafficChart && state.history) {
+                trafficChart.data.labels = state.history.map(h => h.time);
+                trafficChart.data.datasets[0].data = state.history.map(h => h.req_per_sec);
+                trafficChart.data.datasets[1].data = state.history.map(h => h.kb_per_sec);
+                trafficChart.update('none');
+            }
+
+            // Tables
+            renderTopClients(state.top_clients);
+            renderTopDomains(state.top_domains);
+
+            // Recent Logs
+            if (!isPaused && state.recent_logs) {
+                allLogs = state.recent_logs;
+                applyLogFilters();
+            }
+        }
+
+        // Connect WebSocket for Live Streaming
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/live`;
+            const ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                document.getElementById('wsIndicator').className = "w-2 h-2 rounded-full bg-emerald-400";
+                document.getElementById('wsStatusText').textContent = "Live Sync";
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateUI(data);
+                } catch (e) {
+                    console.error("WS Parse error", e);
+                }
+            };
+
+            ws.onclose = () => {
+                document.getElementById('wsIndicator').className = "w-2 h-2 rounded-full bg-amber-400";
+                document.getElementById('wsStatusText').textContent = "Polling Fallback";
+                setTimeout(initWebSocket, 3000);
+            };
+
+            ws.onerror = () => {
+                ws.close();
+            };
+        }
+
+        // Fallback polling
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                updateUI(data);
+            } catch (err) {
+                console.error("Fetch error", err);
+            }
+        }
+
+        // Init on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            fetchStats();
+            initWebSocket();
+        });
+    </script>
+</body>
+</html>

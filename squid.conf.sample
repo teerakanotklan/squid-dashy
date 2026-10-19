@@ -1,0 +1,36 @@
+# ==========================================
+# Squid Proxy - Sample Configuration Snippet
+# สำหรับใช้งานร่วมกับ Squid Dashboard
+# ==========================================
+
+# พอร์ตที่ให้บริการ Proxy
+http_port 3128
+
+# 1. กำหนด ACL สำหรับ Cache Manager
+acl localhost src 127.0.0.1/32 ::1
+acl dashboard_host src 192.168.1.0/24  # กำหนด IP หรือ Subnet ของ Dashboard server
+acl manager proto cache_object
+
+# 2. สิทธิ์การเข้าถึง Cache Manager
+# อนุญาตให้ localhost และ dashboard_host เรียกดูค่า Cache Manager ได้
+http_access allow manager localhost
+http_access allow manager dashboard_host
+http_access deny manager
+
+# 3. กำหนดรูปแบบ Access Log (แนะนำใช้ค่าเริ่มต้นแบบ squid format)
+logformat squid %ts.%03tu %6tr %>a %Ss/%03>Hs %<st %rm %ru %[un %Sh/%<a %mt
+access_log /var/log/squid/access.log squid
+
+# 4. ตั้งค่าแคชฮาร์ดดิสก์และหน่วยความจำ (ตัวอย่าง)
+cache_mem 256 MB
+maximum_object_size_in_memory 512 KB
+maximum_object_size 100 MB
+cache_dir ufs /var/spool/squid 10000 16 256
+
+# 5. สิทธิ์สำหรับเครื่องลูกข่ายทั่วไป (ตัวอย่าง)
+acl localnet src 10.0.0.0/8
+acl localnet src 172.16.0.0/12
+acl localnet src 192.168.0.0/16
+http_access allow localnet
+http_access allow localhost
+http_access deny all

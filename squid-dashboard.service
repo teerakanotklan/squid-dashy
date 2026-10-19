@@ -1,0 +1,20 @@
+[Unit]
+Description=Squid Proxy Web Dashboard
+After=network.target squid.service
+Wants=squid.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/squid-dashboard
+ExecStart=/usr/bin/python3 app.py
+Restart=always
+RestartSec=5
+Environment=DASHBOARD_HOST=0.0.0.0
+Environment=DASHBOARD_PORT=8080
+Environment=SQUID_HOST=127.0.0.1
+Environment=SQUID_PORT=3128
+Environment=SQUID_ACCESS_LOG=/var/log/squid/access.log
+
+[Install]
+WantedBy=multi-user.target
