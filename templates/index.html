@@ -89,11 +89,6 @@
 
             <!-- Header Controls -->
             <div class="flex items-center space-x-3">
-                <!-- Mode toggle button -->
-                <button id="modeToggleBtn" onclick="toggleMode()" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition flex items-center space-x-1.5">
-                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-teal-400"></i>
-                    <span id="modeBadgeText">Mode: Live</span>
-                </button>
 
                 <!-- WebSocket Connection Indicator -->
                 <div class="hidden sm:flex items-center space-x-1.5 text-xs text-slate-400 bg-slate-800/60 px-2.5 py-1.5 rounded-lg border border-slate-800">
@@ -562,16 +557,6 @@
             }
         }
 
-        // Toggle Demo Mode
-        async function toggleMode() {
-            try {
-                const res = await fetch('/api/mode/toggle', { method: 'POST' });
-                const data = await res.json();
-                fetchStats();
-            } catch (err) {
-                console.error(err);
-            }
-        }
 
         // Execute Cache Manager Query
         async function executeCacheMgr() {
@@ -760,9 +745,6 @@
 
             document.getElementById('squidVersion').textContent = state.status.version;
             document.getElementById('squidEndpoint').textContent = `${state.status.target_host}:${state.status.target_port}`;
-            
-            const modeBtn = document.getElementById('modeBadgeText');
-            modeBtn.textContent = state.status.is_demo_mode ? "โหมด: จำลอง (Demo)" : "โหมด: Real-Squid";
 
             // KPIs
             const kpi = state.kpi;

@@ -30,9 +30,6 @@
    - รองรับการดึงข้อมูลและสถิติเชิงลึกผ่าน `mgr:info`, `mgr:5min`, `mgr:utilization`, `mgr:client_list`, `mgr:ipcache`, `mgr:counters`
    - มีปุ่มคลิกคัดลอกข้อความผลลัพธ์ (Copy to Clipboard)
 
-6. **ระบบ Demo / Simulation Mode:**
-   - ตรวจจับอัตโนมัติ หากยังไม่ได้ต่อกับ Squid จริง หรือรันบนเครื่อง Local/Windows ระบบจะจำลองข้อมูลทราฟฟิกและสถิติให้ทดสอบหน้าจอได้ทันที
-
 ---
 
 ## 🚀 วิธีการติดตั้งและเริ่มใช้งาน (Installation Guide)
@@ -201,7 +198,6 @@ docker compose up -d
 | `SQUID_HOST` | `127.0.0.1` | IP ของเครื่อง Squid Proxy |
 | `SQUID_PORT` | `3128` | พอร์ตของ Squid Proxy |
 | `SQUID_ACCESS_LOG` | `/var/log/squid/access.log` | ตำแหน่งไฟล์ access.log ของ Squid |
-| `FORCE_DEMO_MODE` | `false` | บังคับเปิดโหมดจำลองทราฟฟิกสำหรับทดสอบ UI |
 
 ---
 

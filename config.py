@@ -13,8 +13,5 @@ class Config:
     # Squid Log Paths (Linux standard default or custom)
     SQUID_ACCESS_LOG = os.getenv("SQUID_ACCESS_LOG", "/var/log/squid/access.log")
     SQUID_CACHE_LOG = os.getenv("SQUID_CACHE_LOG", "/var/log/squid/cache.log")
-    
-    # Demo/Simulation Mode (defaults to Auto: True if Squid host or log is unreachable)
-    FORCE_DEMO_MODE = os.getenv("FORCE_DEMO_MODE", "").lower() in ("true", "1", "yes")
 
 config = Config()

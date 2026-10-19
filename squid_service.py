@@ -2,8 +2,6 @@ import os
 import re
 import time
 import socket
-import asyncio
-import random
 from datetime import datetime, timezone
 from collections import deque, Counter
 from urllib.parse import urlparse
@@ -63,7 +61,6 @@ class SquidLogEntry:
 
 class SquidMonitor:
     def __init__(self):
-        self.is_demo_mode = config.FORCE_DEMO_MODE
         self.squid_alive = False
         self.squid_version = "Squid Cache"
         self.uptime_seconds = 0
@@ -89,12 +86,12 @@ class SquidMonitor:
         
         # System/Squid hardware metrics
         self.metrics = {
-            "cpu_usage_pct": 2.4,
-            "memory_used_mb": 142.5,
+            "cpu_usage_pct": 0.0,
+            "memory_used_mb": 0.0,
             "memory_max_mb": 512.0,
-            "disk_cache_used_mb": 1820.0,
+            "disk_cache_used_mb": 0.0,
             "disk_cache_max_mb": 10240.0,
-            "file_descriptors_used": 68,
+            "file_descriptors_used": 0,
             "file_descriptors_max": 4096,
             "active_clients": 0,
             "req_per_sec": 0.0,
@@ -245,52 +242,6 @@ class SquidMonitor:
         except Exception:
             pass
 
-    def generate_demo_traffic(self):
-        """Generates realistic synthetic Squid proxy events for demo & testing"""
-        demo_clients = [
-            "192.168.1.102", "192.168.1.105", "192.168.1.114", "192.168.1.120", 
-            "192.168.1.145", "10.0.0.54", "10.0.0.88", "172.16.0.12"
-        ]
-        demo_sites = [
-            ("cdn.jsdelivr.net", "application/javascript", "TCP_MEM_HIT", 200, 35000),
-            ("fonts.googleapis.com", "text/css", "TCP_HIT", 200, 12000),
-            ("repo.debian.org", "application/octet-stream", "TCP_HIT", 200, 450000),
-            ("api.github.com", "application/json", "TCP_MISS", 200, 4200),
-            ("news.ycombinator.com", "text/html", "TCP_MISS", 200, 18500),
-            ("img.youtube.com", "image/jpeg", "TCP_MEM_HIT", 200, 68000),
-            ("static.cloudflareinsights.com", "application/javascript", "TCP_HIT", 200, 8900),
-            ("adservice.google.com", "text/html", "TCP_DENIED", 403, 1420),
-            ("tracker.analytics.io", "application/json", "TCP_DENIED", 403, 850),
-            ("docker.io", "application/octet-stream", "TCP_MISS", 200, 950000),
-            ("raw.githubusercontent.com", "text/plain", "TCP_HIT", 200, 24000),
-            ("connect.facebook.net", "application/javascript", "TCP_DENIED", 403, 1100),
-        ]
-        
-        # Generate 1 to 4 random requests per tick
-        count = random.randint(1, 4)
-        now = time.time()
-        for _ in range(count):
-            client = random.choice(demo_clients)
-            site, mime, code, status, base_bytes = random.choice(demo_sites)
-            
-            # Add small random variation
-            bytes_transferred = int(base_bytes * random.uniform(0.7, 1.4))
-            duration = random.randint(3, 120) if "HIT" in code else random.randint(80, 450)
-            url = f"https://{site}/resource/{random.randint(100, 999)}?t={int(now)}"
-            peer = "HIER_NONE/-" if "HIT" in code or code == "TCP_DENIED" else f"DIRECT/{random.randint(1,220)}.{random.randint(1,220)}.10.5"
-            method = "CONNECT" if ":443" in site else "GET"
-            
-            entry = SquidLogEntry(now, duration, client, code, status, bytes_transferred, method, url, peer, mime)
-            self.record_entry(entry)
-
-        # Fluctuate simulated metrics smoothly
-        self.metrics["cpu_usage_pct"] = round(max(0.5, min(95.0, self.metrics["cpu_usage_pct"] + random.uniform(-0.6, 0.7))), 1)
-        self.metrics["memory_used_mb"] = round(max(50.0, min(480.0, self.metrics["memory_used_mb"] + random.uniform(-1.5, 2.0))), 1)
-        self.metrics["disk_cache_used_mb"] = round(max(500.0, min(9800.0, self.metrics["disk_cache_used_mb"] + (self.saved_bytes / (1024*1024*100)))), 1)
-        self.metrics["file_descriptors_used"] = random.randint(45, 120)
-        self.squid_version = "Squid Cache 6.6 (Demo Simulation Mode)"
-        self.squid_alive = True
-
     def tail_log_file(self):
         """Reads new lines from Squid's access.log if it exists"""
         log_path = config.SQUID_ACCESS_LOG
@@ -331,13 +282,9 @@ class SquidMonitor:
         if elapsed <= 0:
             elapsed = 1.0
 
-        # Check real Squid or Demo
-        if not self.is_demo_mode and os.path.exists(config.SQUID_ACCESS_LOG):
-            self.tail_log_file()
-            self.query_squid_mgr("info")
-        else:
-            # Fallback to demo mode if Squid is not locally present
-            self.generate_demo_traffic()
+        # Read actual Squid log and query Squid Cache Manager
+        self.tail_log_file()
+        self.query_squid_mgr("info")
 
         # Compute rates
         delta_req = self.total_requests - self._last_total_req
@@ -398,7 +345,6 @@ class SquidMonitor:
                 "alive": self.squid_alive,
                 "version": self.squid_version,
                 "uptime": self.uptime_seconds,
-                "is_demo_mode": self.is_demo_mode,
                 "target_host": config.SQUID_HOST,
                 "target_port": config.SQUID_PORT,
                 "log_file": config.SQUID_ACCESS_LOG,

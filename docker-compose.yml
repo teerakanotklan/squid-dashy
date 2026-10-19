@@ -14,7 +14,6 @@ services:
       - SQUID_HOST=squid-proxy          # หรือ IP ของเครื่อง Squid เช่น 127.0.0.1 หรือ host.docker.internal
       - SQUID_PORT=3128
       - SQUID_ACCESS_LOG=/var/log/squid/access.log
-      - FORCE_DEMO_MODE=false
     volumes:
       # Mount access.log จากเครื่อง Host เข้ามาเพื่ออ่าน Log แบบ Real-time
       - /var/log/squid:/var/log/squid:ro
