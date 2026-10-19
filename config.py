@@ -22,4 +22,15 @@ class Config:
     SQUID_BLOCKED_DOMAINS_FILE = os.getenv("SQUID_BLOCKED_DOMAINS_FILE", _default_blocklist)
     SQUID_RECONFIGURE_CMD = os.getenv("SQUID_RECONFIGURE_CMD", "squid -k reconfigure")
 
+    # Data Storage & Graylog-style Log Retention Lifecycle
+    # 1. Metrics History: Kept up to 365 days
+    # 2. Raw Log Daily Archive: Sliced when log age > 1 day
+    # 3. Monthly Consolidation: Bundled into consolidated monthly archives at 30 days
+    # 4. Raw Log Rotation/Purge: Deleted when older than 91 days
+    DATA_DIR = os.getenv("DATA_DIR", os.path.join(os.path.dirname(__file__), "data"))
+    METRICS_RETENTION_DAYS = int(os.getenv("METRICS_RETENTION_DAYS", "365"))
+    LOG_ARCHIVE_DAYS = int(os.getenv("LOG_ARCHIVE_DAYS", "1"))
+    LOG_CONSOLIDATION_DAYS = int(os.getenv("LOG_CONSOLIDATION_DAYS", "30"))
+    LOG_PURGE_DAYS = int(os.getenv("LOG_PURGE_DAYS", "91"))
+
 config = Config()

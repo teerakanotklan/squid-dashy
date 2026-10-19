@@ -36,6 +36,14 @@ A modern, lightweight, real-time web monitoring and analytics dashboard for **Sq
    - Run queries directly against the Squid Cache Manager API (`mgr:info`, `mgr:5min`, `mgr:utilization`, `mgr:client_list`, `mgr:ipcache`, `mgr:counters`).
    - Terminal-style raw output viewer with one-click copy to clipboard.
 
+7. **365-Day Metrics History & Graylog-Style Log Retention Lifecycle:**
+   - **Long-Term Analytics (365 Days):** Daily aggregated metrics (requests, hit ratio, bandwidth, top clients/domains) stored up to 365 days in embedded SQLite (`data/squid_history.db`).
+   - **Daily Log Archival (> 1 Day):** Compresses previous day's log entries into gzip archives (`access-YYYY-MM-DD.log.gz`).
+   - **Monthly Consolidation (30 Days):** Bundles daily archives older than 30 days into monthly tarballs (`access-YYYY-MM.tar.gz`), similar to Graylog index deflector merging.
+   - **Log Rotation Purge (> 91 Days):** Automatically deletes raw log archives older than 91 days to safeguard disk space while keeping long-term aggregated metrics intact.
+   - **Interactive History UI:** View historical trends across 7, 30, 90, and 365-day horizons and inspect archive indices with manual maintenance triggers.
+
+
 ---
 
 ## 🚀 Installation & Getting Started
@@ -211,6 +219,11 @@ Configuration parameters can be defined via environment variables or a `.env` fi
 | `SQUID_RECONFIGURE_CMD` | `squid -k reconfigure` | Command to reload Squid ACL rules |
 | `SQUID_MGR_USER` | `""` | Optional HTTP basic auth user for Cache Manager |
 | `SQUID_MGR_PASS` | `""` | Optional HTTP basic auth password for Cache Manager |
+| `DATA_DIR` | `./data` | Directory path for SQLite history DB and log archives |
+| `METRICS_RETENTION_DAYS` | `365` | Maximum retention horizon for daily aggregated metrics (days) |
+| `LOG_ARCHIVE_DAYS` | `1` | Age threshold to compress raw logs into daily gzip archives (days) |
+| `LOG_CONSOLIDATION_DAYS` | `30` | Age threshold to bundle daily archives into monthly tarballs (days) |
+| `LOG_PURGE_DAYS` | `91` | Age threshold to purge raw log archives and prevent disk bloat (days) |
 
 ---
 

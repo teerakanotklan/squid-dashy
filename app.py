@@ -9,28 +9,51 @@ from fastapi.staticfiles import StaticFiles
 from config import config
 from squid_service import monitor
 from domain_blocker import domain_blocker
+from retention_manager import retention_manager
 
 class BlockDomainRequest(BaseModel):
     domain: str
 
-background_task = None
+metrics_task = None
+retention_task = None
 
 async def metrics_worker():
-    """Background worker that updates stats every 2 seconds from real Squid"""
+    """Background worker that updates stats every 2 seconds and saves periodic snapshots"""
+    tick_count = 0
     while True:
         try:
             await asyncio.to_thread(monitor.tick)
+            tick_count += 1
+            # Save daily aggregated snapshot to SQLite every ~60 seconds (30 ticks)
+            if tick_count % 30 == 0:
+                state = monitor.get_summary_state()
+                await asyncio.to_thread(retention_manager.save_daily_metrics, state)
         except Exception as e:
             print(f"Error in metrics worker: {e}")
         await asyncio.sleep(2.0)
 
+async def retention_worker():
+    """Runs Graylog-style retention pipeline (archive > consolidate > purge > prune) every hour"""
+    # Initial run after 10 seconds of startup
+    await asyncio.sleep(10.0)
+    while True:
+        try:
+            logs_copy = list(monitor.recent_logs)
+            await asyncio.to_thread(retention_manager.run_full_lifecycle, logs_copy)
+        except Exception as e:
+            print(f"Error in retention worker: {e}")
+        await asyncio.sleep(3600.0) # Run every hour
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global background_task
-    background_task = asyncio.create_task(metrics_worker())
+    global metrics_task, retention_task
+    metrics_task = asyncio.create_task(metrics_worker())
+    retention_task = asyncio.create_task(retention_worker())
     yield
-    if background_task:
-        background_task.cancel()
+    if metrics_task:
+        metrics_task.cancel()
+    if retention_task:
+        retention_task.cancel()
 
 app = FastAPI(title="Squid Proxy Monitor", lifespan=lifespan)
 
@@ -106,6 +129,26 @@ async def remove_blocked_domain(domain: str):
 @app.post("/api/blocked-domains/reconfigure")
 async def reconfigure_squid():
     result = await asyncio.to_thread(domain_blocker.reconfigure_squid)
+    return result
+
+# --- 365-Day Metrics & Graylog-style Retention Endpoints ---
+@app.get("/api/history/metrics")
+async def get_historical_metrics(days: int = Query(30, ge=1, le=365)):
+    # Save current live state before querying
+    state = monitor.get_summary_state()
+    await asyncio.to_thread(retention_manager.save_daily_metrics, state)
+    return await asyncio.to_thread(retention_manager.get_historical_metrics, days)
+
+@app.get("/api/history/retention-status")
+async def get_retention_status():
+    return await asyncio.to_thread(retention_manager.get_retention_overview)
+
+@app.post("/api/history/run-maintenance")
+async def trigger_maintenance():
+    logs_copy = list(monitor.recent_logs)
+    state = monitor.get_summary_state()
+    await asyncio.to_thread(retention_manager.save_daily_metrics, state)
+    result = await asyncio.to_thread(retention_manager.run_full_lifecycle, logs_copy)
     return result
 
 @app.websocket("/ws/live")
